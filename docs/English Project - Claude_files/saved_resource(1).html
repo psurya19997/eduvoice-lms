@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<!-- saved from url=(0012)about:srcdoc -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js" integrity="sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      (function() {
+        const originalConsole = window.console;
+        window.console = {
+          log: (...args) => {
+            originalConsole.log(...args);
+            window.parent.postMessage({ type: 'console', message: args.join(' ') }, '*');
+          },
+          error: (...args) => {
+            originalConsole.error(...args);
+            window.parent.postMessage({ type: 'console', message: 'Error: ' + args.join(' ') }, '*');
+          },
+          warn: (...args) => {
+            originalConsole.warn(...args);
+            window.parent.postMessage({ type: 'console', message: 'Warning: ' + args.join(' ') }, '*');
+          }
+        };
+
+        let requestId = 0;
+        let callbacksMap = new Map();
+        let streamControllers = new Map();
+        
+        window.claude = {
+          complete: (prompt) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'claudeComplete', id, prompt }, '*');
+            });
+          }
+        };
+
+        window.storage = {
+          get: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageGet', id, key, shared }, '*');
+            });
+          },
+          set: (key, value, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageSet', id, key, value, shared }, '*');
+            });
+          },
+          delete: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageDelete', id, key, shared }, '*');
+            });
+          },
+          list: (prefix, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageList', id, prefix, shared }, '*');
+            });
+          }
+        };
+
+        let pendingBlobs = new Map();
+        URL.createObjectURL = (blob) => {
+          // Store the blob and create an ID and URL for it
+          const blobId = `blob-${Date.now()}-${Math.random()}`;
+          pendingBlobs.set(blobId, blob);
+          return `blob-request://${blobId}`;
+        };
+
+        URL.revokeObjectURL = (url) => {
+          // Remove the blob from our store
+          const blobId = url.replace("blob-request://", "");
+          pendingBlobs.delete(blobId);
+        };
+
+        const getBlobFromURL = (url) => {
+          const blobId = url.replace("blob-request://", "");
+          return pendingBlobs.get(blobId);
+        };
+
+        // Override global fetch with streaming support
+        window.fetch = (url, init = {}) => {
+          return new Promise((resolve, reject) => {
+            const id = requestId++;
+            const channelId = `fetch-${id}-${Date.now()}`;
+            
+            callbacksMap.set(id, { 
+              resolve: (response) => {
+                // Create a ReadableStream for the response body
+                const stream = new ReadableStream({
+                  start(controller) {
+                    streamControllers.set(channelId, controller);
+                  },
+                  cancel() {
+                    streamControllers.delete(channelId);
+                  }
+                });
+                
+                // Create and return the Response with the stream
+                resolve(new Response(stream, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers
+                }));
+              },
+              reject,
+              channelId
+            });
+            
+            window.parent.postMessage({
+              type: 'proxyFetch',
+              id,
+              url,
+              init,
+              channelId
+            }, '*');
+          });
+        };
+
+        window.addEventListener('message', async (event) => {
+          if (event.data.type === 'takeScreenshot') {
+            const rootElement = document.getElementById('artifacts-component-root-html');
+            if (!rootElement) {
+              window.parent.postMessage({
+                type: 'screenshotError',
+                error: new Error('Root element not found'),
+              }, '*');
+            }
+            const screenshot = await htmlToImage.toPng(rootElement, {
+              imagePlaceholder:
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdjePDgwX8ACOQDoNsk0PMAAAAASUVORK5CYII=",
+            });
+            window.parent.postMessage({
+              type: 'screenshotData',
+              data: screenshot,
+            }, '*');
+          } else if (event.data.type === 'claudeComplete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.completion);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'proxyFetchResponse') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+              callbacksMap.delete(event.data.id);
+            } else {
+              // Initial response with headers, status, etc.
+              callback.resolve({
+                status: event.data.status,
+                statusText: event.data.statusText,
+                headers: event.data.headers
+              });
+              // Don't delete the callback yet if streaming
+              if (!event.data.body) {
+                callbacksMap.delete(event.data.id);
+              }
+            }
+          } else if (event.data.type === 'proxyFetchStream') {
+            // Handle streaming data chunks
+            const controller = streamControllers.get(event.data.channelId);
+            if (controller) {
+              if (event.data.error) {
+                controller.error(new Error(event.data.error));
+                streamControllers.delete(event.data.channelId);
+              } else if (event.data.done) {
+                controller.close();
+                streamControllers.delete(event.data.channelId);
+                // Clean up the callback
+                const callback = Array.from(callbacksMap.entries()).find(
+                  ([_, value]) => value.channelId === event.data.channelId
+                );
+                if (callback) {
+                  callbacksMap.delete(callback[0]);
+                }
+              } else if (event.data.chunk) {
+                controller.enqueue(new Uint8Array(event.data.chunk));
+              }
+            }
+          } else if (event.data.type === 'storageGet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageSet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageDelete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageList') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          }
+        });
+
+        window.addEventListener('click', (event) => {
+          const isEl = event.target instanceof HTMLElement;
+          if (!isEl) return;
+    
+          // find ancestor links
+          const linkEl = event.target.closest("a");
+          if (!linkEl || !linkEl.href) return;
+    
+          event.preventDefault();
+          event.stopImmediatePropagation();
+    
+          if (linkEl.href.startsWith("blob-request:")) {
+            const blob = getBlobFromURL(linkEl.href);
+            if (!blob) return;
+            void blob.arrayBuffer().then((data) => {
+              window.parent.postMessage({
+                type: "downloadFile",
+                filename: linkEl.download,
+                data,
+                mimeType: blob.type || "application/octet-stream",
+              });
+            });
+          } else if (linkEl.href.startsWith("data:")) {
+            const [header, base64Data] = linkEl.href.split(",");
+            const mimeMatch = header.match(/data:([^;]+)/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+            const binaryString = atob(base64Data);
+            const data = Uint8Array.from(binaryString, (c) =>
+              c.charCodeAt(0),
+            ).buffer;
+            window.parent.postMessage({
+              type: "downloadFile",
+              filename: linkEl.download,
+              data,
+              mimeType,
+            });
+          } else {
+            let linkUrl;
+            try {
+              linkUrl = new URL(linkEl.href);
+            } catch (error) {
+              return;
+            }
+    
+            if (linkUrl.hostname === window.location.hostname) return;
+      
+            window.parent.postMessage({
+              type: 'openExternal',
+              href: linkEl.href,
+            }, '*');
+          }
+      });
+
+        const originalOpen = window.open;
+        window.open = function (url) {
+          window.parent.postMessage({
+            type: "openExternal",
+            href: url,
+          }, "*");
+        };
+
+        window.addEventListener('error', (event) => {
+          window.parent.postMessage({ type: 'console', message: 'Uncaught Error: ' + event.message }, '*');
+        });
+      })();
+    </script>
+  
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduVoice LMS — UI Design Walkthrough</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #1E3A5F;
+    --accent: #2E86C1;
+    --purple: #6A1B9A;
+    --teal: #00695C;
+    --orange: #E65100;
+    --green: #1E8449;
+    --coral: #FF4081;
+    --font: 'Inter', sans-serif;
+    --nunito: 'Nunito', sans-serif;
+  }
+
+  body { font-family: var(--font); background: #f0f2f5; color: #222; }
+
+  /* ── COVER ── */
+  .cover {
+    background: linear-gradient(135deg, #1E3A5F 0%, #2E86C1 100%);
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 60px 40px;
+    text-align: center; page-break-after: always;
+  }
+  .cover-logo { width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
+  .cover-title { font-family: var(--nunito); font-size: 52px; font-weight: 900; color: #fff; margin-bottom: 8px; }
+  .cover-sub { font-size: 22px; color: rgba(255,255,255,0.8); margin-bottom: 40px; font-style: italic; }
+  .cover-meta { background: rgba(255,255,255,0.1); border-radius: 16px; padding: 24px 40px; display: inline-block; }
+  .cover-meta-row { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; }
+  .cover-meta-row:last-child { margin-bottom: 0; }
+  .cover-meta-label { font-size: 13px; color: rgba(255,255,255,0.6); min-width: 120px; text-align: right; }
+  .cover-meta-value { font-size: 14px; color: #fff; font-weight: 600; }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    padding: 60px 40px 30px;
+    page-break-before: always;
+  }
+  .section-num { font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+  .section-title { font-family: var(--nunito); font-size: 36px; font-weight: 900; margin-bottom: 12px; }
+  .section-desc { font-size: 16px; color: #666; line-height: 1.6; max-width: 700px; }
+  .section-line { height: 4px; border-radius: 2px; width: 60px; margin-top: 16px; }
+
+  /* ── PAGE BLOCK ── */
+  .page-block {
+    display: flex; gap: 48px; align-items: flex-start;
+    padding: 40px 40px 40px 40px;
+    border-bottom: 1px solid #e0e0e0;
+    page-break-inside: avoid;
+    background: #fff;
+    margin-bottom: 2px;
+  }
+  .page-block.reverse { flex-direction: row-reverse; }
+
+  /* ── PHONE FRAME ── */
+  .phone-wrap { flex-shrink: 0; }
+  .phone { width: 240px; background: #1a1a2e; border-radius: 36px; padding: 10px; box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
+  .phone-inner { background: #fff; border-radius: 28px; overflow: hidden; min-height: 480px; }
+  .phone-label { text-align: center; font-size: 11px; color: #999; margin-top: 10px; font-style: italic; }
+
+  /* ── EXPLANATION ── */
+  .explanation { flex: 1; padding-top: 8px; }
+  .page-num { display: inline-block; background: #f0f2f5; color: #666; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; margin-bottom: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .page-name { font-family: var(--nunito); font-size: 26px; font-weight: 900; color: #1a1a1a; margin-bottom: 6px; }
+  .page-route { font-size: 13px; color: #999; font-family: monospace; margin-bottom: 16px; }
+  .role-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; margin-bottom: 16px; }
+  .purpose-box { background: #f8f9ff; border-left: 4px solid var(--accent); padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 20px; font-size: 14px; color: #444; line-height: 1.6; }
+  .exp-section { margin-bottom: 16px; }
+  .exp-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #999; margin-bottom: 8px; }
+  .exp-list { list-style: none; }
+  .exp-list li { font-size: 14px; color: #444; padding: 4px 0 4px 20px; position: relative; line-height: 1.5; }
+  .exp-list li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-size: 12px; top: 5px; }
+  .exp-list li.sub { padding-left: 40px; }
+  .exp-list li.sub::before { content: '·'; color: #bbb; }
+  .note-box { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #666; margin-top: 12px; }
+  .note-box strong { color: #e65100; }
+
+  /* ── SCREEN STYLES (phone UI) ── */
+  .screen { font-family: var(--nunito); min-height: 480px; display: flex; flex-direction: column; }
+
+  /* Landing */
+  .landing { background: linear-gradient(160deg, #FFDA44 0%, #FF7B54 60%, #FF4081 100%); }
+  .landing-top { padding: 32px 20px 16px; text-align: center; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .landing-logo { width: 56px; height: 56px; background: rgba(255,255,255,0.25); border-radius: 18px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+  .s-title { font-size: 24px; font-weight: 900; color: #fff; margin: 0 0 4px; }
+  .s-sub { font-size: 12px; color: rgba(255,255,255,0.85); margin: 0 0 24px; }
+  .btn-white { background: #fff; color: #FF4081; border: none; border-radius: 14px; padding: 12px; font-size: 14px; font-weight: 800; font-family: var(--nunito); width: 100%; margin-bottom: 8px; cursor: pointer; }
+  .btn-outline { background: rgba(255,255,255,0.15); color: #fff; border: 2px solid rgba(255,255,255,0.6); border-radius: 14px; padding: 11px; font-size: 14px; font-weight: 700; font-family: var(--nunito); width: 100%; cursor: pointer; }
+  .landing-footer { padding: 14px 20px; text-align: center; font-size: 10px; color: rgba(255,255,255,0.7); }
+
+  /* Role select */
+  .role-header { background: linear-gradient(135deg, #FFDA44, #FF7B54); padding: 28px 18px 20px; text-align: center; }
+  .rh-title { font-size: 18px; font-weight: 900; color: #fff; margin: 0 0 3px; }
+  .rh-sub { font-size: 11px; color: rgba(255,255,255,0.8); }
+  .role-body { padding: 18px 14px; flex: 1; background: #fff; }
+  .role-q { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 12px; }
+  .role-card { border: 2px solid #f0f0f0; border-radius: 14px; padding: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .role-card.sel { border-color: #FF4081; background: #fff5f8; }
+  .role-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .role-name { font-size: 13px; font-weight: 800; color: #222; margin: 0 0 2px; }
+  .role-desc { font-size: 10px; color: #888; }
+  .role-check { width: 18px; height: 18px; border-radius: 50%; margin-left: auto; flex-shrink: 0; background: #FF4081; display: flex; align-items: center; justify-content: center; }
+  .role-next { background: #FF4081; color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 800; font-family: var(--nunito); width: 100%; margin-top: 14px; cursor: pointer; }
+
+  /* Form screens */
+  .form-header { padding: 26px 16px 16px; }
+  .fh-back { font-size: 10px; color: rgba(255,255,255,0.8); margin-bottom: 6px; }
+  .fh-title { font-size: 18px; font-weight: 900; color: #fff; margin: 0 0 2px; }
+  .fh-sub { font-size: 10px; color: rgba(255,255,255,0.75); }
+  .step-dots { display: flex; gap: 4px; margin-top: 10px; }
+  .dot { height: 3px; border-radius: 2px; flex: 1; }
+  .dot.active { background: #fff; }
+  .dot.done { background: rgba(255,255,255,0.5); }
+  .dot.pending { background: rgba(255,255,255,0.2); }
+  .form-body { padding: 14px; flex: 1; background: #fff; }
+  .f-label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block; }
+  .f-input { width: 100%; border: 1.5px solid #e8e8e8; border-radius: 10px; padding: 9px 12px; font-size: 13px; font-family: var(--nunito); color: #222; background: #fafafa; margin-bottom: 10px; }
+  .f-input.focus { border-color: #8E54E9; background: #fff; }
+  .f-select { width: 100%; border: 1.5px solid #e8e8e8; border-radius: 10px; padding: 9px 12px; font-size: 13px; font-family: var(--nunito); color: #222; background: #fafafa; margin-bottom: 10px; appearance: none; }
+  .teacher-hdr { background: linear-gradient(135deg, #4776E6, #8E54E9); }
+  .teacher-btn { background: linear-gradient(135deg, #4776E6, #8E54E9); color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 800; font-family: var(--nunito); width: 100%; cursor: pointer; }
+  .student-hdr { background: linear-gradient(135deg, #11998e, #38ef7d); }
+  .student-btn { background: linear-gradient(135deg, #11998e, #38ef7d); color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 800; font-family: var(--nunito); width: 100%; cursor: pointer; }
+  .f-note { font-size: 10px; color: #aaa; text-align: center; margin-top: 8px; }
+  .two-col { display: flex; gap: 6px; }
+  .two-col > div { flex: 1; }
+
+  /* OTP */
+  .otp-body { padding: 20px 16px; flex: 1; display: flex; flex-direction: column; align-items: center; background: #fff; }
+  .otp-icon { width: 52px; height: 52px; background: #EDE7F6; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+  .otp-title { font-size: 16px; font-weight: 900; color: #222; margin-bottom: 4px; text-align: center; }
+  .otp-desc { font-size: 11px; color: #888; text-align: center; margin-bottom: 18px; line-height: 1.5; }
+  .otp-boxes { display: flex; gap: 6px; margin-bottom: 14px; }
+  .otp-box { width: 40px; height: 48px; border: 2px solid #8E54E9; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #8E54E9; background: #F3EEFF; }
+  .otp-box.empty { border-color: #e0e0e0; background: #fafafa; }
+  .otp-resend { font-size: 11px; color: #888; margin-bottom: 14px; }
+  .otp-resend span { color: #8E54E9; font-weight: 700; }
+  .otp-btn { background: linear-gradient(135deg, #4776E6, #8E54E9); color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 13px; font-weight: 800; font-family: var(--nunito); width: 100%; cursor: pointer; }
+
+  /* Set password */
+  .verify-banner { background: #F3EEFF; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #8E54E9; font-weight: 600; }
+  .strength-bar { display: flex; gap: 3px; margin-top: 4px; margin-bottom: 10px; }
+  .str-seg { height: 3px; flex: 1; border-radius: 2px; }
+
+  /* Login */
+  .login-header { padding: 24px 18px 14px; text-align: center; background: #fafafa; border-bottom: 1px solid #f0f0f0; }
+  .login-logo { width: 44px; height: 44px; background: linear-gradient(135deg, #FFDA44, #FF7B54); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
+  .login-title { font-size: 17px; font-weight: 900; color: #222; margin-bottom: 2px; }
+  .login-sub { font-size: 11px; color: #888; }
+  .login-tabs { display: flex; border-bottom: 2px solid #f0f0f0; background: #fff; }
+  .login-tab { flex: 1; padding: 9px 4px; text-align: center; font-size: 11px; font-weight: 700; color: #bbb; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: var(--nunito); }
+  .login-tab.act-s { color: #11998e; border-bottom-color: #11998e; }
+  .login-tab.act-t { color: #8E54E9; border-bottom-color: #8E54E9; }
+  .login-tab.act-p { color: #4776E6; border-bottom-color: #4776E6; }
+  .login-body { padding: 16px 14px; flex: 1; background: #fff; }
+  .login-btn-s { background: linear-gradient(135deg,#11998e,#38ef7d); color:#fff; border:none; border-radius:12px; padding:12px; font-size:13px; font-weight:800; font-family:var(--nunito); width:100%; cursor:pointer; margin-top:4px; }
+  .login-btn-t { background: linear-gradient(135deg,#4776E6,#8E54E9); color:#fff; border:none; border-radius:12px; padding:12px; font-size:13px; font-weight:800; font-family:var(--nunito); width:100%; cursor:pointer; margin-top:4px; }
+  .login-forgot { font-size: 11px; color: #FF4081; text-align: right; margin: 4px 0; font-weight: 600; }
+  .login-new { background:#fff8f9; border:1.5px dashed #FFAAC0; border-radius:10px; padding:10px; text-align:center; margin-top:10px; }
+  .login-new-title { font-size:10px; color:#FF4081; font-weight:700; }
+  .login-new-sub { font-size:10px; color:#aaa; margin:2px 0 6px; }
+  .login-new-btn { background:#FF4081; color:#fff; border:none; border-radius:8px; padding:6px 16px; font-size:11px; font-weight:800; font-family:var(--nunito); cursor:pointer; }
+
+  /* Pending */
+  .pending-screen { background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px 20px; min-height:480px; }
+  .pending-icon { width:68px; height:68px; background:#FFF3E0; border-radius:20px; display:flex; align-items:center; justify-content:center; margin-bottom:16px; }
+  .pending-title { font-size:18px; font-weight:900; color:#222; margin-bottom:6px; text-align:center; }
+  .pending-desc { font-size:12px; color:#888; text-align:center; line-height:1.6; margin-bottom:18px; }
+  .pending-box { background:#FFF8F5; border:1.5px solid #FFD5B8; border-radius:12px; padding:12px; width:100%; margin-bottom:16px; }
+  .pending-box-title { font-size:11px; color:#FF7B54; font-weight:700; margin-bottom:4px; }
+  .pending-box-text { font-size:11px; color:#888; line-height:1.5; }
+  .pending-logout { background:#f0f0f0; color:#888; border:none; border-radius:12px; padding:11px; font-size:13px; font-weight:800; font-family:var(--nunito); width:100%; cursor:pointer; }
+
+  /* Principal screens */
+  .p-topbar { background: linear-gradient(135deg, #1E3A5F, #2E86C1); padding: 24px 14px 14px; }
+  .p-greeting { font-size: 10px; color: rgba(255,255,255,0.7); }
+  .p-name { font-size: 16px; font-weight: 900; color: #fff; }
+  .p-school { font-size: 10px; color: rgba(255,255,255,0.7); margin-bottom: 8px; }
+  .p-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+  .p-pill { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); border-radius: 16px; padding: 3px 10px; font-size: 9px; font-weight: 700; }
+  .p-pill.act { background: #fff; color: #1E3A5F; }
+  .p-stats { display: flex; gap: 6px; padding: 10px 10px 0; }
+  .p-stat { flex: 1; background: #fff; border-radius: 10px; padding: 8px 6px; text-align: center; }
+  .p-stat-n { font-size: 18px; font-weight: 900; color: #1E3A5F; }
+  .p-stat-l { font-size: 8px; color: #aaa; font-weight: 700; text-transform: uppercase; }
+  .p-nav { display: flex; background: #fff; border-bottom: 1px solid #f0f0f0; padding: 0 6px; }
+  .p-tab { flex: 1; padding: 8px 2px; text-align: center; font-size: 9px; font-weight: 700; color: #bbb; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .p-tab.act { color: #2E86C1; border-bottom-color: #2E86C1; }
+  .p-list { padding: 8px 10px; flex: 1; background: #F5F6FA; overflow-y: auto; }
+  .p-sec-h { display: flex; justify-content: space-between; margin-bottom: 6px; margin-top: 4px; }
+  .p-sec-t { font-size: 9px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.06em; }
+  .p-sec-c { font-size: 9px; color: #aaa; }
+  .p-item { background: #fff; border-radius: 10px; padding: 10px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .p-avatar { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; color: #fff; flex-shrink: 0; }
+  .p-item-name { font-size: 11px; font-weight: 800; color: #222; margin: 0 0 2px; }
+  .p-item-sub { font-size: 9px; color: #aaa; }
+  .p-actions { margin-left: auto; display: flex; gap: 3px; flex-shrink: 0; }
+  .p-btn { font-size: 9px; font-weight: 700; padding: 4px 7px; border-radius: 6px; border: none; cursor: pointer; font-family: var(--nunito); }
+  .p-btn.approve { background: #E8F5E9; color: #2E7D32; }
+  .p-btn.disable { background: #FFEBEE; color: #C62828; }
+  .p-btn.reassign { background: #EEF2FF; color: #3949AB; }
+  .badge-sm { font-size: 8px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+  .badge-active { background: #E8F5E9; color: #2E7D32; }
+  .badge-pending { background: #FFF3E0; color: #E65100; }
+  .badge-disabled { background: #FFEBEE; color: #C62828; }
+  .p-bottom { background: #fff; border-top: 1px solid #f0f0f0; display: flex; padding: 6px 0 8px; }
+  .p-bnav { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .p-bnav-lbl { font-size: 8px; font-weight: 700; color: #bbb; }
+  .p-bnav-lbl.act { color: #2E86C1; }
+
+  /* Course item */
+  .course-item { background: #fff; border-radius: 10px; padding: 10px; margin-bottom: 6px; }
+  .course-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .course-name { font-size: 12px; font-weight: 800; color: #222; }
+  .course-meta { font-size: 9px; color: #aaa; margin-bottom: 6px; }
+  .course-actions { display: flex; gap: 4px; }
+
+  /* Class change */
+  .cr-item { background: #fff; border-radius: 10px; padding: 10px; margin-bottom: 6px; }
+  .cr-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .cr-name { font-size: 11px; font-weight: 800; color: #222; margin: 0; }
+  .cr-course { font-size: 9px; color: #aaa; }
+  .cr-change { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+  .cr-grade { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+  .cr-from { background: #FFF3E0; color: #E65100; }
+  .cr-to { background: #E8F5E9; color: #2E7D32; }
+  .cr-btns { display: flex; gap: 5px; }
+  .cr-approve { background: #E8F5E9; color: #2E7D32; font-size: 10px; font-weight: 800; padding: 6px 10px; border-radius: 8px; border: none; font-family: var(--nunito); flex: 1; cursor: pointer; }
+  .cr-reject { background: #FFEBEE; color: #C62828; font-size: 10px; font-weight: 800; padding: 6px 10px; border-radius: 8px; border: none; font-family: var(--nunito); flex: 1; cursor: pointer; }
+  .bulk-bar { background: #1E3A5F; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; }
+  .bulk-text { font-size: 10px; color: #fff; font-weight: 700; }
+  .bulk-btn { background: #fff; color: #1E3A5F; font-size: 9px; font-weight: 800; padding: 4px 10px; border-radius: 6px; border: none; font-family: var(--nunito); cursor: pointer; }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 10px; padding: 10px; margin-bottom: 6px; }
+  .toggle-label { font-size: 11px; font-weight: 700; color: #333; }
+  .toggle-sub { font-size: 9px; color: #aaa; }
+  .toggle { width: 32px; height: 18px; border-radius: 9px; position: relative; flex-shrink: 0; }
+  .toggle.on { background: #2E86C1; }
+  .toggle.off { background: #ddd; }
+  .t-knob { width: 14px; height: 14px; border-radius: 50%; background: #fff; position: absolute; top: 2px; }
+  .toggle.on .t-knob { left: 16px; }
+  .toggle.off .t-knob { left: 2px; }
+
+  /* Modal */
+  .modal-overlay { background: rgba(0,0,0,0.4); position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; border-radius: 28px; }
+  .modal-sheet { background: #fff; border-radius: 18px 18px 0 0; padding: 14px; width: 100%; }
+  .modal-handle { width: 28px; height: 3px; background: #ddd; border-radius: 2px; margin: 0 auto 12px; }
+  .modal-icon { width: 40px; height: 40px; background: #FFEBEE; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .modal-title { font-size: 14px; font-weight: 900; color: #222; margin-bottom: 3px; }
+  .modal-sub { font-size: 10px; color: #aaa; margin-bottom: 10px; }
+  .modal-warn { background: #FFF3E0; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+  .modal-warn-t { font-size: 10px; color: #E65100; font-weight: 700; margin-bottom: 3px; }
+  .modal-warn-b { font-size: 10px; color: #888; line-height: 1.5; }
+  .modal-btn { width: 100%; padding: 10px; border-radius: 10px; border: none; font-size: 12px; font-weight: 800; font-family: var(--nunito); cursor: pointer; margin-bottom: 5px; }
+  .modal-danger { background: #FFEBEE; color: #C62828; }
+  .modal-cancel { background: #f5f5f5; color: #888; }
+
+  /* Teacher screens */
+  .t-topbar { background: linear-gradient(135deg, #4776E6, #8E54E9); padding: 24px 14px 14px; }
+  .t-card { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+  .t-card-title { font-size: 13px; font-weight: 800; color: #222; margin-bottom: 4px; }
+  .t-card-sub { font-size: 10px; color: #aaa; margin-bottom: 8px; }
+  .t-card-footer { display: flex; justify-content: space-between; align-items: center; }
+  .t-badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+  .t-live { background: #E8F5E9; color: #2E7D32; }
+  .t-unlive { background: #F3E5F5; color: #6A1B9A; }
+  .t-expired { background: #FFEBEE; color: #C62828; }
+  .t-progress { height: 3px; background: #f0f0f0; border-radius: 2px; margin-bottom: 6px; }
+  .t-progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #4776E6, #8E54E9); }
+  .toggle-inline { display: flex; align-items: center; gap: 5px; }
+  .toggle-sm { width: 26px; height: 14px; border-radius: 7px; position: relative; flex-shrink: 0; }
+  .toggle-sm.on { background: #4776E6; }
+  .toggle-sm.off { background: #ddd; }
+  .tk-sm { width: 10px; height: 10px; border-radius: 50%; background: #fff; position: absolute; top: 2px; }
+  .toggle-sm.on .tk-sm { left: 14px; }
+  .toggle-sm.off .tk-sm { left: 2px; }
+
+  /* Student screens */
+  .s-topbar { background: linear-gradient(135deg, #11998e, #38ef7d); padding: 24px 14px 14px; }
+  .s-course-card { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+  .s-course-name { font-size: 13px; font-weight: 800; color: #222; margin-bottom: 2px; }
+  .s-course-teacher { font-size: 10px; color: #aaa; margin-bottom: 8px; }
+  .s-progress { height: 3px; background: #f0f0f0; border-radius: 2px; margin-bottom: 6px; }
+  .s-progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #11998e, #38ef7d); }
+  .s-pending { font-size: 9px; font-weight: 700; background: #FFF3E0; color: #E65100; padding: 3px 8px; border-radius: 6px; }
+  .s-assignment { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+  .s-a-title { font-size: 12px; font-weight: 800; color: #222; margin-bottom: 3px; }
+  .s-a-due { font-size: 10px; color: #aaa; margin-bottom: 6px; }
+  .s-a-footer { display: flex; justify-content: space-between; align-items: center; }
+  .s-submitted { font-size: 9px; font-weight: 700; background: #E8F5E9; color: #2E7D32; padding: 3px 8px; border-radius: 6px; }
+  .s-open { font-size: 9px; font-weight: 700; background: #E3F2FD; color: #1565C0; padding: 3px 8px; border-radius: 6px; }
+  .s-closed { font-size: 9px; font-weight: 700; background: #FFEBEE; color: #C62828; padding: 3px 8px; border-radius: 6px; }
+  .s-score-card { background: linear-gradient(135deg, #11998e, #38ef7d); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+  .s-rank { font-size: 36px; font-weight: 900; color: #fff; }
+  .s-rank-label { font-size: 10px; color: rgba(255,255,255,0.8); margin-bottom: 6px; }
+  .s-score-pts { font-size: 18px; font-weight: 900; color: #fff; }
+  .s-score-label { font-size: 10px; color: rgba(255,255,255,0.8); }
+  .s-breakdown { display: flex; gap: 6px; margin-top: 8px; }
+  .s-bp { background: rgba(255,255,255,0.2); border-radius: 8px; padding: 5px 8px; flex: 1; text-align: center; }
+  .s-bp-n { font-size: 12px; font-weight: 900; color: #fff; }
+  .s-bp-l { font-size: 8px; color: rgba(255,255,255,0.75); }
+  .badge-card { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .badge-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .badge-name { font-size: 12px; font-weight: 800; color: #222; margin-bottom: 2px; }
+  .badge-count { font-size: 10px; color: #aaa; }
+  .badge-num { margin-left: auto; font-size: 22px; font-weight: 900; color: #1E3A5F; }
+  .s-submit-types { display: flex; gap: 6px; margin-bottom: 12px; }
+  .s-type-btn { flex: 1; border: 2px solid #e0e0e0; border-radius: 10px; padding: 8px 4px; text-align: center; font-size: 10px; font-weight: 700; color: #aaa; font-family: var(--nunito); background: #fafafa; }
+  .s-type-btn.active { border-color: #11998e; color: #11998e; background: #E0F2F1; }
+  .record-btn { width: 60px; height: 60px; border-radius: 50%; background: #FFEBEE; border: 3px solid #f44336; display: flex; align-items: center; justify-content: center; margin: 10px auto; }
+  .record-timer { text-align: center; font-size: 18px; font-weight: 900; color: #f44336; margin-bottom: 8px; }
+  .confirm-modal { background: rgba(0,0,0,0.4); position: absolute; top:0;left:0;right:0;bottom:0; display:flex;align-items:center;justify-content:center; border-radius:28px; }
+  .confirm-sheet { background: #fff; border-radius: 16px; padding: 20px 16px; margin: 20px; }
+  .confirm-title { font-size: 15px; font-weight: 900; color: #222; margin-bottom: 6px; text-align: center; }
+  .confirm-desc { font-size: 12px; color: #888; text-align: center; margin-bottom: 16px; line-height: 1.5; }
+  .confirm-yes { background: #11998e; color: #fff; border: none; border-radius: 10px; padding: 11px; font-size: 13px; font-weight: 800; font-family: var(--nunito); width: 100%; cursor: pointer; margin-bottom: 6px; }
+  .confirm-no { background: #f5f5f5; color: #888; border: none; border-radius: 10px; padding: 11px; font-size: 13px; font-weight: 800; font-family: var(--nunito); width: 100%; cursor: pointer; }
+
+  /* Profile */
+  .profile-screen { background: #F5F6FA; flex: 1; }
+  .profile-top { background: linear-gradient(135deg, #11998e, #38ef7d); padding: 28px 16px 24px; text-align: center; }
+  .profile-avatar { width: 64px; height: 64px; border-radius: 20px; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; color: #fff; margin: 0 auto 10px; }
+  .profile-name { font-size: 18px; font-weight: 900; color: #fff; margin-bottom: 2px; }
+  .profile-class { font-size: 12px; color: rgba(255,255,255,0.8); }
+  .profile-body { padding: 12px; }
+  .profile-section { font-size: 9px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 6px; }
+  .profile-row { background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+  .profile-row-label { font-size: 11px; color: #888; }
+  .profile-row-value { font-size: 11px; font-weight: 700; color: #222; }
+  .profile-change-btn { background: #E0F2F1; color: #00695C; border: none; border-radius: 8px; padding: 5px 12px; font-size: 10px; font-weight: 800; font-family: var(--nunito); cursor: pointer; }
+  .profile-logout { background: #FFEBEE; color: #C62828; border: none; border-radius: 10px; padding: 11px; font-size: 12px; font-weight: 800; font-family: var(--nunito); width: 100%; margin-top: 10px; cursor: pointer; }
+
+  /* ── PRINT STYLES ── */
+  @media print {
+    .page-block { page-break-inside: avoid; }
+    .section-header { page-break-before: always; }
+    .cover { page-break-after: always; min-height: auto; padding: 80px 40px; }
+  }
+
+  /* ── TABLE OF CONTENTS ── */
+  .toc { padding: 60px 40px; background: #fff; page-break-after: always; }
+  .toc-title { font-family: var(--nunito); font-size: 32px; font-weight: 900; color: #1E3A5F; margin-bottom: 30px; }
+  .toc-section { margin-bottom: 20px; }
+  .toc-section-title { font-size: 14px; font-weight: 700; color: #2E86C1; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e0e0e0; }
+  .toc-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+  .toc-item-name { font-size: 13px; color: #444; }
+  .toc-item-page { font-size: 12px; color: #aaa; font-family: monospace; }
+  .toc-dot { flex: 1; border-bottom: 1px dotted #ddd; margin: 0 8px; }
+</style>
+</head>
+<body id="artifacts-component-root-html">
+
+<!-- ══ COVER ══ -->
+<div class="cover">
+  <div class="cover-logo">
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+      <circle cx="22" cy="22" r="18" fill="rgba(255,255,255,0.25)"></circle>
+      <path d="M15 28 L22 12 L29 28" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+      <path d="M17 22 L27 22" stroke="white" stroke-width="3" stroke-linecap="round"></path>
+      <circle cx="22" cy="33" r="2.5" fill="white"></circle>
+    </svg>
+  </div>
+  <div class="cover-title">EduVoice LMS</div>
+  <div class="cover-sub">UI Design Walkthrough — Screen by Screen</div>
+  <div class="cover-meta">
+    <div class="cover-meta-row"><span class="cover-meta-label">Document</span><span class="cover-meta-value">UI Design Specification</span></div>
+    <div class="cover-meta-row"><span class="cover-meta-label">Version</span><span class="cover-meta-value">1.0 — Aligned with PRD v4.0</span></div>
+    <div class="cover-meta-row"><span class="cover-meta-label">Date</span><span class="cover-meta-value">April 2026</span></div>
+    <div class="cover-meta-row"><span class="cover-meta-label">Target</span><span class="cover-meta-value">Android Chrome — Mobile First</span></div>
+    <div class="cover-meta-row"><span class="cover-meta-label">Total Screens</span><span class="cover-meta-value">24 screens across 5 roles</span></div>
+  </div>
+</div>
+
+<!-- ══ TABLE OF CONTENTS ══ -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <div class="toc-section">
+    <div class="toc-section-title">Section 1 — Auth Screens (Public)</div>
+    <div class="toc-item"><span class="toc-item-name">P01 · Welcome / Landing</span><span class="toc-dot"></span><span class="toc-item-page">/</span></div>
+    <div class="toc-item"><span class="toc-item-name">P02 · Role Selection</span><span class="toc-dot"></span><span class="toc-item-page">/signup</span></div>
+    <div class="toc-item"><span class="toc-item-name">P03 · Teacher Signup — Step 1</span><span class="toc-dot"></span><span class="toc-item-page">/signup/teacher</span></div>
+    <div class="toc-item"><span class="toc-item-name">P04 · OTP Verification</span><span class="toc-dot"></span><span class="toc-item-page">/signup/teacher/verify</span></div>
+    <div class="toc-item"><span class="toc-item-name">P05 · Set Password</span><span class="toc-dot"></span><span class="toc-item-page">/signup/teacher/password</span></div>
+    <div class="toc-item"><span class="toc-item-name">P06 · Student Signup</span><span class="toc-dot"></span><span class="toc-item-page">/signup/student</span></div>
+    <div class="toc-item"><span class="toc-item-name">P07 · Login (All Roles)</span><span class="toc-dot"></span><span class="toc-item-page">/login</span></div>
+    <div class="toc-item"><span class="toc-item-name">P08 · Pending Approval</span><span class="toc-dot"></span><span class="toc-item-page">/pending</span></div>
+  </div>
+  <div class="toc-section">
+    <div class="toc-section-title">Section 2 — Principal Screens</div>
+    <div class="toc-item"><span class="toc-item-name">P09 · Principal Dashboard</span><span class="toc-dot"></span><span class="toc-item-page">/principal</span></div>
+    <div class="toc-item"><span class="toc-item-name">P10 · Teachers List</span><span class="toc-dot"></span><span class="toc-item-page">/principal/teachers</span></div>
+    <div class="toc-item"><span class="toc-item-name">P11 · Courses List</span><span class="toc-dot"></span><span class="toc-item-page">/principal/courses</span></div>
+    <div class="toc-item"><span class="toc-item-name">P12 · Disable Course Warning</span><span class="toc-dot"></span><span class="toc-item-page">/principal/courses</span></div>
+    <div class="toc-item"><span class="toc-item-name">P13 · Class Change Requests</span><span class="toc-dot"></span><span class="toc-item-page">/principal/requests</span></div>
+    <div class="toc-item"><span class="toc-item-name">P14 · Settings</span><span class="toc-dot"></span><span class="toc-item-page">/principal/settings</span></div>
+  </div>
+  <div class="toc-section">
+    <div class="toc-section-title">Section 3 — Teacher Screens</div>
+    <div class="toc-item"><span class="toc-item-name">P15 · Teacher Dashboard</span><span class="toc-dot"></span><span class="toc-item-page">/teacher</span></div>
+    <div class="toc-item"><span class="toc-item-name">P16 · Course Detail &amp; Assignments</span><span class="toc-dot"></span><span class="toc-item-page">/teacher/courses/:id</span></div>
+    <div class="toc-item"><span class="toc-item-name">P17 · Create Assignment</span><span class="toc-dot"></span><span class="toc-item-page">/teacher/assignments/new</span></div>
+    <div class="toc-item"><span class="toc-item-name">P18 · View Submissions</span><span class="toc-dot"></span><span class="toc-item-page">/teacher/assignments/:id/submissions</span></div>
+  </div>
+  <div class="toc-section">
+    <div class="toc-section-title">Section 4 — Student Screens</div>
+    <div class="toc-item"><span class="toc-item-name">P19 · Student Dashboard</span><span class="toc-dot"></span><span class="toc-item-page">/student</span></div>
+    <div class="toc-item"><span class="toc-item-name">P20 · Course Detail</span><span class="toc-dot"></span><span class="toc-item-page">/student/courses/:id</span></div>
+    <div class="toc-item"><span class="toc-item-name">P21 · Assignment Detail</span><span class="toc-dot"></span><span class="toc-item-page">/student/assignments/:id</span></div>
+    <div class="toc-item"><span class="toc-item-name">P22 · Submit Assignment (Audio)</span><span class="toc-dot"></span><span class="toc-item-page">/student/assignments/:id/submit</span></div>
+    <div class="toc-item"><span class="toc-item-name">P23 · Leaderboard</span><span class="toc-dot"></span><span class="toc-item-page">/student/leaderboard</span></div>
+    <div class="toc-item"><span class="toc-item-name">P24 · Badges &amp; Achievements</span><span class="toc-dot"></span><span class="toc-item-page">/student/badges</span></div>
+    <div class="toc-item"><span class="toc-item-name">P24 · Student Profile</span><span class="toc-dot"></span><span class="toc-item-page">/student/profile</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- SECTION 1: AUTH -->
+<!-- ══════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num" style="color:#FF4081;">Section 01</div>
+  <div class="section-title" style="color:#1a1a1a;">Auth Screens</div>
+  <div class="section-desc">Public screens accessible to all users without login. Handles registration and authentication for teachers and students. Principal and Super Admin do not self-register.</div>
+  <div class="section-line" style="background:#FF4081;"></div>
+</div>
+
+<!-- P01: LANDING -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen landing">
+      <div class="landing-top">
+        <div class="landing-logo"><svg width="32" height="32" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="18" fill="rgba(255,255,255,0.25)"></circle><path d="M15 28 L22 12 L29 28" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"></path><path d="M17 22 L27 22" stroke="white" stroke-width="3" stroke-linecap="round"></path><circle cx="22" cy="33" r="2.5" fill="white"></circle></svg></div>
+        <div class="s-title">EduVoice</div>
+        <div class="s-sub">Learn. Speak. Grow.</div>
+        <div style="width:100%;">
+          <button class="btn-white">Get Started</button>
+          <button class="btn-outline">Log In</button>
+        </div>
+      </div>
+      <div class="landing-footer">For students, teachers &amp; principals</div>
+    </div></div></div>
+    <div class="phone-label">P01 — Welcome Screen</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P01 · Public</div>
+    <div class="page-name">Welcome / Landing</div>
+    <div class="page-route">Route: /</div>
+    <div class="role-badge" style="background:#FFF0F3;color:#FF4081;">All Users</div>
+    <div class="purpose-box">The very first screen users see when opening EduVoice. It introduces the app with branding and gives two clear paths: create an account or log in.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>EduVoice logo and app name with colorful gradient background</li>
+        <li>Tagline: "Learn. Speak. Grow."</li>
+        <li>"Get Started" button — navigates to Role Selection</li>
+        <li>"Log In" button — navigates to Login screen</li>
+        <li>Footer note: "For students, teachers &amp; principals"</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>If user is already logged in → auto-redirect to their role dashboard</li>
+        <li>No data fetched on this page</li>
+        <li>No authentication required</li>
+      </ul>
+    </div>
+    <div class="note-box"><strong>PRD Note:</strong> Principal and Super Admin do not appear here — they do not self-register. This screen is for teachers and students only.</div>
+  </div>
+</div>
+
+<!-- P02: ROLE SELECT -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen">
+      <div class="role-header"><div class="rh-title">Create Account</div><div class="rh-sub">Who are you?</div></div>
+      <div class="role-body">
+        <div class="role-q">Select your role to continue</div>
+        <div class="role-card sel">
+          <div class="role-icon" style="background:#FFF3E0;">📚</div>
+          <div><div class="role-name">Teacher</div><div class="role-desc">Create courses &amp; assignments</div></div>
+          <div class="role-check"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 3" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"></path></svg></div>
+        </div>
+        <div class="role-card">
+          <div class="role-icon" style="background:#E8F5E9;">🎓</div>
+          <div><div class="role-name">Student</div><div class="role-desc">View &amp; submit assignments</div></div>
+        </div>
+        <button class="role-next">Continue as Teacher</button>
+        <div style="margin-top:12px;text-align:center;font-size:11px;color:#aaa;">Already have an account? <span style="color:#FF4081;font-weight:700;">Log in</span></div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P02 — Role Selection</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P02 · Public</div>
+    <div class="page-name">Role Selection</div>
+    <div class="page-route">Route: /signup</div>
+    <div class="role-badge" style="background:#FFF0F3;color:#FF4081;">New Users Only</div>
+    <div class="purpose-box">User picks whether they are a Teacher or Student before proceeding with signup. This determines which form they see next.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Two selectable role cards: Teacher and Student</li>
+        <li>Selected card gets a checkmark and pink border highlight</li>
+        <li>"Continue" button label updates to match selection</li>
+        <li>"Already have an account? Log in" link at bottom</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Only Teacher and Student roles shown here</li>
+        <li>Principal is NOT a self-register option — created by Super Admin</li>
+        <li>Teacher → navigates to /signup/teacher</li>
+        <li>Student → navigates to /signup/student</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P03: TEACHER SIGNUP STEP 1 -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen">
+      <div class="form-header teacher-hdr">
+        <div class="fh-back">← Back</div>
+        <div class="fh-title">Teacher Sign Up</div>
+        <div class="fh-sub">Step 1 of 3 — Basic Info</div>
+        <div class="step-dots"><div class="dot active"></div><div class="dot pending"></div><div class="dot pending"></div></div>
+      </div>
+      <div class="form-body">
+        <label class="f-label">First Name</label><input class="f-input focus" value="Maria" readonly="">
+        <label class="f-label">Last Name</label><input class="f-input" placeholder="Santos" readonly="">
+        <label class="f-label">Email Address</label><input class="f-input" placeholder="teacher@school.com" readonly="">
+        <label class="f-label">School</label>
+        <select class="f-select"><option>St. Mary Academy</option></select>
+        <button class="teacher-btn">Send Verification OTP →</button>
+        <div class="f-note">A one-time code will be sent to your email</div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P03 — Teacher Signup Step 1</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P03 · Public</div>
+    <div class="page-name">Teacher Signup — Step 1</div>
+    <div class="page-route">Route: /signup/teacher</div>
+    <div class="role-badge" style="background:#EDE7F6;color:#6A1B9A;">Teacher Registration</div>
+    <div class="purpose-box">Teacher enters their basic information. On submit, an OTP is sent to their email. This is the first of a 3-step registration flow.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Step indicator showing Step 1 of 3 (3 progress dots)</li>
+        <li>First Name and Last Name fields</li>
+        <li>Email Address field</li>
+        <li>School dropdown — fetches all active schools from database</li>
+        <li>"Send Verification OTP" button</li>
+        <li>Note: "A one-time code will be sent to your email"</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>All fields required before submission</li>
+        <li>School dropdown only shows schools where is_active = true</li>
+        <li>If email already registered → error shown</li>
+        <li>On submit → Supabase Auth sends OTP email → navigate to step 2</li>
+      </ul>
+    </div>
+    <div class="note-box"><strong>PRD Note:</strong> Teacher can change their school selection from profile before principal approval if they picked the wrong school.</div>
+  </div>
+</div>
+
+<!-- P04: OTP -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen">
+      <div class="form-header teacher-hdr">
+        <div class="fh-back">← Back</div>
+        <div class="fh-title">Verify Email</div>
+        <div class="fh-sub">Step 2 of 3 — OTP</div>
+        <div class="step-dots"><div class="dot done"></div><div class="dot active"></div><div class="dot pending"></div></div>
+      </div>
+      <div class="otp-body">
+        <div class="otp-icon"><svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect x="4" y="8" width="24" height="17" rx="3" stroke="#8E54E9" stroke-width="2"></rect><path d="M4 11l12 8 12-8" stroke="#8E54E9" stroke-width="2" stroke-linecap="round"></path></svg></div>
+        <div class="otp-title">Check your email</div>
+        <div class="otp-desc">We sent a 4-digit code to<br><strong>maria@school.com</strong></div>
+        <div class="otp-boxes">
+          <div class="otp-box">8</div><div class="otp-box">4</div><div class="otp-box">2</div><div class="otp-box empty"></div>
+        </div>
+        <div class="otp-resend">Didn't receive it? <span>Resend code</span></div>
+        <button class="otp-btn">Verify &amp; Continue →</button>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P04 — OTP Verification</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P04 · Public</div>
+    <div class="page-name">OTP Verification</div>
+    <div class="page-route">Route: /signup/teacher/verify</div>
+    <div class="role-badge" style="background:#EDE7F6;color:#6A1B9A;">Teacher Registration</div>
+    <div class="purpose-box">Teacher enters the 4-digit OTP sent to their email. This verifies ownership of the email address. This happens ONCE at signup only — never again on future logins.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Step indicator: Step 2 of 3</li>
+        <li>Email icon and "Check your email" heading</li>
+        <li>Masked email address shown for confirmation</li>
+        <li>4 individual OTP input boxes (auto-advance on input)</li>
+        <li>"Resend code" link (available after 60 seconds)</li>
+        <li>"Verify &amp; Continue" button</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>OTP expires after 10 minutes (Supabase default)</li>
+        <li>Wrong OTP → error shown, fields cleared</li>
+        <li>Correct OTP → email verified → navigate to Step 3</li>
+        <li>Resend throttled — 60 second cooldown between resends</li>
+        <li>Supabase free tier: 3 OTP emails per hour limit</li>
+      </ul>
+    </div>
+    <div class="note-box"><strong>PRD Note:</strong> OTP verification is ONE-TIME during signup. Teacher logs in with email + password on all future logins — no OTP required again.</div>
+  </div>
+</div>
+
+<!-- P05: SET PASSWORD -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen">
+      <div class="form-header teacher-hdr">
+        <div class="fh-back">← Back</div>
+        <div class="fh-title">Set Password</div>
+        <div class="fh-sub">Step 3 of 3 — Almost done!</div>
+        <div class="step-dots"><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div></div>
+      </div>
+      <div class="form-body">
+        <div class="verify-banner">✓ Email verified! Now create your password.</div>
+        <label class="f-label">New Password</label><input class="f-input" type="password" value="••••••••" readonly="">
+        <label class="f-label">Confirm Password</label><input class="f-input focus" type="password" value="••••••••" readonly="">
+        <div style="font-size:10px;color:#aaa;margin-bottom:4px;">Password strength</div>
+        <div class="strength-bar">
+          <div class="str-seg" style="background:#8E54E9;"></div>
+          <div class="str-seg" style="background:#8E54E9;"></div>
+          <div class="str-seg" style="background:#8E54E9;"></div>
+          <div class="str-seg" style="background:#e0e0e0;"></div>
+        </div>
+        <button class="teacher-btn">Create Account →</button>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P05 — Set Password</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P05 · Public</div>
+    <div class="page-name">Set Password</div>
+    <div class="page-route">Route: /signup/teacher/password</div>
+    <div class="role-badge" style="background:#EDE7F6;color:#6A1B9A;">Teacher Registration</div>
+    <div class="purpose-box">Final step of teacher signup. Teacher creates their password and the account is officially created. After this, they are redirected based on school approval settings.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Step indicator: Step 3 of 3</li>
+        <li>Green success banner confirming email was verified</li>
+        <li>Password field (with show/hide toggle)</li>
+        <li>Confirm Password field</li>
+        <li>Password strength indicator bar (4 segments)</li>
+        <li>"Create Account" button</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Minimum 8 characters required</li>
+        <li>Both password fields must match</li>
+        <li>Account created in Supabase Auth + profiles table</li>
+        <li>If school requires approval → redirect to /pending screen</li>
+        <li>If school approval OFF → redirect to /teacher dashboard</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P06: STUDENT SIGNUP -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen">
+      <div class="form-header student-hdr">
+        <div class="fh-back">← Back</div>
+        <div class="fh-title">Student Sign Up</div>
+        <div class="fh-sub">Fill in your details below</div>
+      </div>
+      <div class="form-body">
+        <div class="two-col">
+          <div><label class="f-label">First Name</label><input class="f-input focus" value="Juan" readonly=""></div>
+          <div><label class="f-label">Last Name</label><input class="f-input" placeholder="dela Cruz" readonly=""></div>
+        </div>
+        <label class="f-label">Phone Number</label><input class="f-input" placeholder="09XX XXX XXXX" readonly="">
+        <label class="f-label">Password</label><input class="f-input" type="password" value="••••••••" readonly="">
+        <label class="f-label">School</label><select class="f-select"><option>St. Mary Academy</option></select>
+        <label class="f-label">Class / Grade</label><select class="f-select"><option>Grade 5</option></select>
+        <button class="student-btn">Create Account →</button>
+        <div class="f-note">No verification needed — instant access!</div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P06 — Student Signup</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P06 · Public</div>
+    <div class="page-name">Student Signup</div>
+    <div class="page-route">Route: /signup/student</div>
+    <div class="role-badge" style="background:#E0F2F1;color:#00695C;">Student Registration</div>
+    <div class="purpose-box">Student fills in all details in one screen. No email/phone verification required. Account is created instantly and student gets immediate access to their dashboard.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>First Name + Last Name (side by side)</li>
+        <li>Phone Number (used for login)</li>
+        <li>Password field</li>
+        <li>School dropdown (lists all active schools)</li>
+        <li>Class / Grade dropdown (Grade 1 to Grade 12)</li>
+        <li>"Create Account" button with "instant access" note</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Uniqueness check: phone + first_name + school_id must be unique</li>
+        <li>Siblings sharing a phone are allowed (different first names)</li>
+        <li>School is FIXED forever at signup — cannot be changed later</li>
+        <li>Class can be changed later but requires teacher approval</li>
+        <li>On success → instant redirect to /student dashboard</li>
+        <li>Student logs in with phone + password (not email)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P07: LOGIN -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen">
+      <div class="login-header">
+        <div class="login-logo"><svg width="22" height="22" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="18" fill="rgba(255,255,255,0.25)"></circle><path d="M15 28 L22 12 L29 28" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"></path><path d="M17 22 L27 22" stroke="white" stroke-width="3" stroke-linecap="round"></path></svg></div>
+        <div class="login-title">Welcome back!</div>
+        <div class="login-sub">Log in to EduVoice</div>
+      </div>
+      <div class="login-tabs">
+        <div class="login-tab act-s">Student</div>
+        <div class="login-tab">Teacher</div>
+        <div class="login-tab">Principal</div>
+      </div>
+      <div class="login-body">
+        <label class="f-label">Phone Number</label><input class="f-input focus" placeholder="09XX XXX XXXX" readonly="">
+        <label class="f-label">Password</label><input class="f-input" type="password" value="••••••••" readonly="">
+        <div class="login-forgot">Forgot password?</div>
+        <button class="login-btn-s">Log In</button>
+        <div class="login-new">
+          <div class="login-new-title">New to EduVoice?</div>
+          <div class="login-new-sub">Ask your teacher for the school name</div>
+          <button class="login-new-btn">Create Account</button>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P07 — Login (Student tab)</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P07 · Public</div>
+    <div class="page-name">Login Screen</div>
+    <div class="page-route">Route: /login</div>
+    <div class="role-badge" style="background:#FFF0F3;color:#FF4081;">All Roles</div>
+    <div class="purpose-box">Single login page for all roles. Three tabs switch between Student, Teacher, and Principal. Each tab shows the appropriate login field (phone vs email).</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>3 tabs: Student | Teacher | Principal</li>
+        <li>Student tab → Phone Number + Password</li>
+        <li>Teacher tab → Email Address + Password</li>
+        <li>Principal tab → Email Address + Password</li>
+        <li>"Forgot password?" link below password field</li>
+        <li>"Create Account" prompt for new users</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Teacher: email + password — NO OTP on login (OTP was once at signup only)</li>
+        <li>Principal: email + password — account created by Super Admin</li>
+        <li>Student: phone + password</li>
+        <li>Disabled accounts → "Your account has been disabled. Contact your principal"</li>
+        <li>Pending teacher → redirected to /pending screen</li>
+        <li>Disabled school → "This school is currently unavailable"</li>
+        <li>Super Admin has a separate hardcoded login — NOT on this page</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P08: PENDING -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner">
+      <div class="pending-screen">
+        <div class="pending-icon"><svg width="36" height="36" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="16" stroke="#FF7B54" stroke-width="2.5"></circle><path d="M20 12v10" stroke="#FF7B54" stroke-width="2.5" stroke-linecap="round"></path><circle cx="20" cy="26" r="1.5" fill="#FF7B54"></circle></svg></div>
+        <div class="pending-title">Pending Approval</div>
+        <div class="pending-desc">Your account is waiting for approval from the principal of <strong style="color:#FF7B54;">St. Mary Academy</strong></div>
+        <div class="pending-box">
+          <div class="pending-box-title">What happens next?</div>
+          <div class="pending-box-text">The principal will review your registration. Once approved, you can log in and start creating courses.</div>
+        </div>
+        <button class="pending-logout">Log Out</button>
+      </div>
+    </div></div>
+    <div class="phone-label">P08 — Pending Approval</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P08 · Teacher</div>
+    <div class="page-name">Pending Approval Screen</div>
+    <div class="page-route">Route: /pending</div>
+    <div class="role-badge" style="background:#EDE7F6;color:#6A1B9A;">Teacher Only</div>
+    <div class="purpose-box">Shown to teachers who have completed registration but whose school requires principal approval before access is granted. Teacher has no access to the dashboard until approved.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Warning icon and "Pending Approval" title</li>
+        <li>School name shown in message</li>
+        <li>"What happens next?" info box explaining the process</li>
+        <li>"Log Out" button only — no other navigation</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Teacher sees this ONLY if school's require_teacher_approval = true</li>
+        <li>If school approval is OFF → teacher never sees this screen</li>
+        <li>Once principal approves → next login goes to /teacher dashboard</li>
+        <li>Teacher cannot access any other part of the app from here</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- SECTION 2: PRINCIPAL -->
+<!-- ══════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num" style="color:#2E86C1;">Section 02</div>
+  <div class="section-title" style="color:#1a1a1a;">Principal Screens</div>
+  <div class="section-desc">Principal manages one or more schools. Dashboard is scoped to the currently selected school via a school switcher. Principal handles teacher approvals, course management, and class change requests — but does NOT see student submissions or grades.</div>
+  <div class="section-line" style="background:#2E86C1;"></div>
+</div>
+
+<!-- P09: PRINCIPAL DASHBOARD -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="p-topbar">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div><div class="p-greeting">Good morning,</div><div class="p-name">Principal Ana</div><div class="p-school">Managing 2 schools</div></div>
+          <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;">A</div>
+        </div>
+        <div class="p-pills" style="margin-top:8px;">
+          <div class="p-pill act">St. Mary Academy</div>
+          <div class="p-pill">Rizal High School</div>
+        </div>
+      </div>
+      <div class="p-stats">
+        <div class="p-stat"><div class="p-stat-n">12</div><div class="p-stat-l">Teachers</div></div>
+        <div class="p-stat"><div class="p-stat-n" style="color:#E65100;">3</div><div class="p-stat-l">Pending</div></div>
+        <div class="p-stat"><div class="p-stat-n">18</div><div class="p-stat-l">Courses</div></div>
+        <div class="p-stat"><div class="p-stat-n" style="color:#2E86C1;">5</div><div class="p-stat-l">Requests</div></div>
+      </div>
+      <div class="p-nav" style="margin-top:8px;">
+        <div class="p-tab act">Teachers</div><div class="p-tab">Courses</div><div class="p-tab">Requests</div><div class="p-tab">Settings</div>
+      </div>
+      <div class="p-list">
+        <div class="p-sec-h"><div class="p-sec-t">Pending Approval</div><div class="p-sec-c">3 teachers</div></div>
+        <div class="p-item">
+          <div class="p-avatar" style="background:#FF7B54;">MR</div>
+          <div><div class="p-item-name">Maria Reyes</div><div class="p-item-sub">Applied 2 days ago</div></div>
+          <div class="p-actions"><button class="p-btn approve">Approve</button><button class="p-btn disable">Reject</button></div>
+        </div>
+        <div class="p-item">
+          <div class="p-avatar" style="background:#11998e;">LC</div>
+          <div><div class="p-item-name">Liza Cruz</div><div class="p-item-sub">English · 3 courses</div></div>
+          <div class="p-actions"><span class="badge-sm badge-active">Active</span></div>
+        </div>
+      </div>
+      <div class="p-bottom">
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="#2E86C1"></rect><rect x="12" y="3" width="7" height="7" rx="2" fill="#ddd"></rect><rect x="3" y="12" width="7" height="7" rx="2" fill="#ddd"></rect><rect x="12" y="12" width="7" height="7" rx="2" fill="#ddd"></rect></svg><div class="p-bnav-lbl act">Dashboard</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="4" stroke="#bbb" stroke-width="1.5"></circle><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"></path></svg><div class="p-bnav-lbl">Teachers</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="13" rx="2" stroke="#bbb" stroke-width="1.5"></rect><path d="M7 9h8M7 13h5" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"></path></svg><div class="p-bnav-lbl">Courses</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#bbb" stroke-width="1.5"></circle><path d="M11 7v4l3 3" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"></path></svg><div class="p-bnav-lbl">Requests</div></div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P09 — Principal Dashboard</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P09 · Principal</div>
+    <div class="page-name">Principal Dashboard</div>
+    <div class="page-route">Route: /principal</div>
+    <div class="role-badge" style="background:#E3F2FD;color:#1565C0;">Principal Only</div>
+    <div class="purpose-box">Main landing page after principal login. Shows a quick overview of the selected school with pending items that need attention. School switcher at top allows managing multiple schools.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Top bar with greeting, name, and school switcher pills</li>
+        <li>4 stats cards: Total Teachers, Pending Approvals, Courses, Class Requests</li>
+        <li>Navigation tabs: Teachers | Courses | Requests | Settings</li>
+        <li>Quick list of pending teacher approvals with Approve/Reject buttons</li>
+        <li>Active teachers list below</li>
+        <li>Bottom navigation bar (Dashboard, Teachers, Courses, Requests)</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>All data scoped to currently selected school</li>
+        <li>Switching school pill refreshes all data</li>
+        <li>Pending count shown as alert color (orange) on stats</li>
+        <li>Principal does NOT see submissions, grades, or academic content</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P10: TEACHERS LIST -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="p-topbar">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div class="p-greeting">St. Mary Academy</div><div class="p-name">Teachers</div></div>
+          <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:5px 10px;font-size:10px;color:#fff;font-weight:700;">Filter</div>
+        </div>
+      </div>
+      <div class="p-nav"><div class="p-tab act">All (12)</div><div class="p-tab">Pending (3)</div><div class="p-tab">Disabled (1)</div></div>
+      <div class="p-list">
+        <div class="p-item">
+          <div class="p-avatar" style="background:#11998e;">LC</div>
+          <div style="flex:1;"><div class="p-item-name">Liza Cruz</div><div class="p-item-sub">English · 3 courses</div></div>
+          <div class="p-actions"><span class="badge-sm badge-active">Active</span><button class="p-btn disable">Disable</button></div>
+        </div>
+        <div class="p-item">
+          <div class="p-avatar" style="background:#FF7B54;">MR</div>
+          <div style="flex:1;"><div class="p-item-name">Maria Reyes</div><div class="p-item-sub">Science · Pending</div></div>
+          <div class="p-actions"><button class="p-btn approve">Approve</button><button class="p-btn disable">Reject</button></div>
+        </div>
+        <div class="p-item">
+          <div class="p-avatar" style="background:#8E54E9;">JD</div>
+          <div style="flex:1;"><div class="p-item-name">Jose Dela Cruz</div><div class="p-item-sub">Math · 2 courses</div></div>
+          <div class="p-actions"><span class="badge-sm badge-active">Active</span><button class="p-btn disable">Disable</button></div>
+        </div>
+        <div class="p-item">
+          <div class="p-avatar" style="background:#aaa;">RB</div>
+          <div style="flex:1;"><div class="p-item-name">Rico Bautista</div><div class="p-item-sub">Filipino · Disabled</div></div>
+          <div class="p-actions"><span class="badge-sm badge-disabled">Disabled</span></div>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P10 — Teachers List</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P10 · Principal</div>
+    <div class="page-name">Teachers List</div>
+    <div class="page-route">Route: /principal/teachers</div>
+    <div class="role-badge" style="background:#E3F2FD;color:#1565C0;">Principal Only</div>
+    <div class="purpose-box">Full list of all teachers in the selected school. Principal can approve, reject, enable, or disable teacher accounts from here.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Filter tabs: All | Pending | Disabled</li>
+        <li>Each teacher shows: avatar, name, subject, course count, status badge</li>
+        <li>Pending teachers: Approve + Reject buttons</li>
+        <li>Active teachers: Disable button</li>
+        <li>Disabled teachers: Enable button</li>
+        <li>Tap on teacher → Teacher Detail page</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Approve → teacher gets dashboard access, is_approved = true</li>
+        <li>Disable → teacher cannot login, but their courses stay visible to students</li>
+        <li>Courses are independent of teacher login status (PRD core rule)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P11: COURSES LIST -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="p-topbar"><div class="p-greeting">St. Mary Academy</div><div class="p-name">Courses</div></div>
+      <div class="p-nav"><div class="p-tab act">Active (16)</div><div class="p-tab">Disabled (2)</div></div>
+      <div class="p-list">
+        <div class="course-item">
+          <div class="course-top"><div class="course-name">English Speaking</div><span class="badge-sm badge-active">Active</span></div>
+          <div class="course-meta">Teacher: Liza Cruz · Grade 5, 6 · 4 assignments</div>
+          <div class="course-actions"><button class="p-btn reassign">Reassign Teacher</button><button class="p-btn disable">Disable</button></div>
+        </div>
+        <div class="course-item">
+          <div class="course-top"><div class="course-name">Math Fundamentals</div><span class="badge-sm badge-active">Active</span></div>
+          <div class="course-meta">Teacher: Jose Dela Cruz · Grade 4, 5 · 6 assignments</div>
+          <div class="course-actions"><button class="p-btn reassign">Reassign Teacher</button><button class="p-btn disable">Disable</button></div>
+        </div>
+        <div class="course-item" style="opacity:0.6;">
+          <div class="course-top"><div class="course-name">Filipino Literature</div><span class="badge-sm badge-disabled">Disabled</span></div>
+          <div class="course-meta">Teacher: Rico Bautista · Grade 6</div>
+          <div class="course-actions"><button class="p-btn approve">Enable</button></div>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P11 — Courses List</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P11 · Principal</div>
+    <div class="page-name">Courses List</div>
+    <div class="page-route">Route: /principal/courses</div>
+    <div class="role-badge" style="background:#E3F2FD;color:#1565C0;">Principal Only</div>
+    <div class="purpose-box">All courses in the selected school. Principal can disable/enable courses and reassign teachers. Disabled courses are immediately hidden from students.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Tabs: Active | Disabled</li>
+        <li>Each course shows: name, status, teacher, classes, assignment count</li>
+        <li>"Reassign Teacher" button → dropdown of approved teachers</li>
+        <li>"Disable" button → triggers warning modal (see P12)</li>
+        <li>Disabled courses shown greyed out with "Enable" button</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Reassigning course → original teacher loses access, new teacher gains it</li>
+        <li>All assignments and submissions remain unchanged after reassignment</li>
+        <li>Disabling course → immediately hidden from all students</li>
+        <li>Submissions for disabled course kept in DB</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P12: DISABLE MODAL -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner" style="position:relative;min-height:480px;">
+      <div class="screen" style="background:#F5F6FA;filter:blur(1px);">
+        <div class="p-topbar"><div class="p-name">Courses</div></div>
+        <div class="p-list" style="margin-top:10px;">
+          <div class="course-item"><div class="course-top"><div class="course-name">English Speaking</div><span class="badge-sm badge-active">Active</span></div></div>
+        </div>
+      </div>
+      <div class="modal-overlay">
+        <div class="modal-sheet">
+          <div class="modal-handle"></div>
+          <div class="modal-icon"><svg width="20" height="20" viewBox="0 0 22 22" fill="none"><path d="M11 7v6" stroke="#C62828" stroke-width="2" stroke-linecap="round"></path><circle cx="11" cy="16" r="1" fill="#C62828"></circle><path d="M3 18L11 4l8 14H3z" stroke="#C62828" stroke-width="1.5" stroke-linejoin="round" fill="none"></path></svg></div>
+          <div class="modal-title">Disable this course?</div>
+          <div class="modal-sub">English Speaking · Grade 5, 6</div>
+          <div class="modal-warn">
+            <div class="modal-warn-t">This will immediately:</div>
+            <div class="modal-warn-b">• Hide the course from all students<br>• Hide all assignments in this course<br>• Keep all submissions in the database</div>
+          </div>
+          <button class="modal-btn modal-danger">Yes, Disable Course</button>
+          <button class="modal-btn modal-cancel">Cancel</button>
+        </div>
+      </div>
+    </div></div>
+    <div class="phone-label">P12 — Disable Course Warning</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P12 · Principal</div>
+    <div class="page-name">Disable Course Warning Modal</div>
+    <div class="page-route">Route: /principal/courses (overlay)</div>
+    <div class="role-badge" style="background:#E3F2FD;color:#1565C0;">Principal Only</div>
+    <div class="purpose-box">Bottom sheet confirmation modal shown before a course is disabled. Clearly lists the consequences so principal can make an informed decision before confirming.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Warning icon and course name shown</li>
+        <li>Orange warning box listing exact consequences:
+          <ul class="exp-list" style="margin-top:4px;">
+            <li class="sub">Course hidden from all students</li>
+            <li class="sub">All assignments hidden</li>
+            <li class="sub">Submissions kept in database</li>
+          </ul>
+        </li>
+        <li>"Yes, Disable Course" red confirmation button</li>
+        <li>"Cancel" button</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>PRD requires: warning shown BEFORE disabling (not after)</li>
+        <li>On confirm → courses.is_active = false, immediate effect</li>
+        <li>Students immediately lose access — no delay</li>
+        <li>Data is preserved — nothing is deleted</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P13: CLASS CHANGE REQUESTS -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="p-topbar">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div class="p-greeting">St. Mary Academy</div><div class="p-name">Class Requests</div></div>
+          <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:5px 10px;font-size:10px;color:#fff;font-weight:700;">Bulk</div>
+        </div>
+      </div>
+      <div class="bulk-bar"><div class="bulk-text">3 pending requests</div><button class="bulk-btn">Approve All</button></div>
+      <div class="p-list">
+        <div class="cr-item">
+          <div class="cr-top">
+            <div class="p-avatar" style="background:#E3F2FD;color:#1565C0;width:32px;height:32px;border-radius:8px;font-size:10px;">JD</div>
+            <div><div class="cr-name">Juan dela Cruz</div><div class="cr-course">English Speaking · 1hr ago</div></div>
+          </div>
+          <div class="cr-change"><span class="cr-grade cr-from">Grade 5</span><span style="color:#aaa;font-size:12px;">→</span><span class="cr-grade cr-to">Grade 6</span></div>
+          <div class="cr-btns"><button class="cr-approve">✓ Approve</button><button class="cr-reject">✕ Reject</button></div>
+        </div>
+        <div class="cr-item">
+          <div class="cr-top">
+            <div class="p-avatar" style="background:#F3E5F5;color:#6A1B9A;width:32px;height:32px;border-radius:8px;font-size:10px;">MS</div>
+            <div><div class="cr-name">Maria Santos</div><div class="cr-course">Math · 3hrs ago</div></div>
+          </div>
+          <div class="cr-change"><span class="cr-grade cr-from">Grade 4</span><span style="color:#aaa;font-size:12px;">→</span><span class="cr-grade cr-to">Grade 5</span></div>
+          <div class="cr-btns"><button class="cr-approve">✓ Approve</button><button class="cr-reject">✕ Reject</button></div>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P13 — Class Change Requests</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P13 · Principal</div>
+    <div class="page-name">Class Change Requests</div>
+    <div class="page-route">Route: /principal/requests</div>
+    <div class="role-badge" style="background:#E3F2FD;color:#1565C0;">Principal Only</div>
+    <div class="purpose-box">Principal reviews and acts on student class change requests for the school. Includes a Bulk Approve All option for efficiency. Students can re-request after rejection.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Pending count banner with "Approve All" bulk button</li>
+        <li>Each request card shows: student name, course, time requested</li>
+        <li>Grade change: FROM pill → TO pill (clearly visualized)</li>
+        <li>Individual Approve + Reject buttons per request</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Approve → student's class updated, applies to ALL courses in that school</li>
+        <li>Reject → student stays in current class, can re-request immediately</li>
+        <li>Bulk approve → approves ALL pending requests at once</li>
+        <li>If teacher disabled → requests stay pending until new teacher assigned</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P14: SETTINGS -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="p-topbar"><div class="p-greeting">St. Mary Academy</div><div class="p-name">Settings</div></div>
+      <div class="p-list">
+        <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin:8px 0 5px;">Teacher Registration</div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">Require teacher approval</div><div class="toggle-sub">New teachers wait for your approval</div></div>
+          <div class="toggle on"><div class="t-knob"></div></div>
+        </div>
+        <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin:8px 0 5px;">School Info</div>
+        <div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:10px;color:#888;">School Name</span><span style="font-size:10px;font-weight:700;color:#222;">St. Mary Academy</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span style="font-size:10px;color:#888;">Total Teachers</span><span style="font-size:10px;font-weight:700;color:#222;">12</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="font-size:10px;color:#888;">Total Students</span><span style="font-size:10px;font-weight:700;color:#222;">248</span></div>
+        </div>
+        <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin:8px 0 5px;">My Schools</div>
+        <div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:11px;font-weight:800;color:#222;">St. Mary Academy</div><div style="font-size:9px;color:#aaa;">Currently viewing</div></div><span class="badge-sm badge-active">Active</span></div>
+        <div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:11px;font-weight:800;color:#222;">Rizal High School</div><div style="font-size:9px;color:#aaa;">Tap to switch</div></div><span class="badge-sm badge-active">Active</span></div>
+        <button style="background:#FFEBEE;color:#C62828;border:none;border-radius:10px;padding:10px;font-size:12px;font-weight:800;font-family:var(--nunito);width:100%;cursor:pointer;">Log Out</button>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P14 — Principal Settings</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P14 · Principal</div>
+    <div class="page-name">Settings</div>
+    <div class="page-route">Route: /principal/settings</div>
+    <div class="role-badge" style="background:#E3F2FD;color:#1565C0;">Principal Only</div>
+    <div class="purpose-box">School settings page. Principal can toggle whether new teacher registrations require approval and can switch between schools they manage.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Teacher approval toggle (ON = require approval, OFF = instant access)</li>
+        <li>School info: name, teacher count, student count</li>
+        <li>List of all schools this principal manages (tap to switch)</li>
+        <li>Log Out button</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Toggle ON → schools.require_teacher_approval = true</li>
+        <li>Toggle OFF → schools.require_teacher_approval = false</li>
+        <li>Change only affects NEW registrations, not existing pending teachers</li>
+        <li>School switcher updates entire dashboard context</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- SECTION 3: TEACHER -->
+<!-- ══════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num" style="color:#6A1B9A;">Section 03</div>
+  <div class="section-title" style="color:#1a1a1a;">Teacher Screens</div>
+  <div class="section-desc">Teacher manages courses and assignments for their school. All content is scoped to the selected school. Teacher controls assignment live/unlive status, due dates, and submission types.</div>
+  <div class="section-line" style="background:#6A1B9A;"></div>
+</div>
+
+<!-- P15: TEACHER DASHBOARD -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="t-topbar">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div><div class="p-greeting">Good morning,</div><div class="p-name">Teacher Liza</div></div>
+          <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:5px 10px;font-size:10px;color:#fff;font-weight:700;">+ New Course</div>
+        </div>
+        <div class="p-pills" style="margin-top:8px;"><div class="p-pill act">St. Mary Academy</div></div>
+      </div>
+      <div class="p-list" style="padding:10px;">
+        <div class="t-card">
+          <div class="t-card-title">English Speaking</div>
+          <div class="t-card-sub">Grade 5, Grade 6 · 4 assignments</div>
+          <div class="t-progress"><div class="t-progress-fill" style="width:75%;"></div></div>
+          <div class="t-card-footer"><span style="font-size:10px;color:#aaa;">3 of 4 live</span><span class="badge-sm" style="background:#FFF3E0;color:#E65100;font-size:9px;">2 requests</span></div>
+        </div>
+        <div class="t-card">
+          <div class="t-card-title">Creative Writing</div>
+          <div class="t-card-sub">Grade 7 · 2 assignments</div>
+          <div class="t-progress"><div class="t-progress-fill" style="width:100%;"></div></div>
+          <div class="t-card-footer"><span style="font-size:10px;color:#aaa;">2 of 2 live</span><span class="badge-sm badge-active" style="font-size:9px;">All live</span></div>
+        </div>
+        <div class="t-card" style="opacity:0.5;">
+          <div class="t-card-title">Grammar Basics</div>
+          <div class="t-card-sub">Grade 5 · Disabled by principal</div>
+          <div class="t-card-footer"><span class="badge-sm badge-disabled" style="font-size:9px;">Course Disabled</span></div>
+        </div>
+      </div>
+      <div class="p-bottom">
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="#6A1B9A"></rect><rect x="12" y="3" width="7" height="7" rx="2" fill="#ddd"></rect><rect x="3" y="12" width="7" height="7" rx="2" fill="#ddd"></rect><rect x="12" y="12" width="7" height="7" rx="2" fill="#ddd"></rect></svg><div class="p-bnav-lbl" style="color:#6A1B9A;">Dashboard</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="13" rx="2" stroke="#bbb" stroke-width="1.5"></rect></svg><div class="p-bnav-lbl">Courses</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#bbb" stroke-width="1.5"></circle><path d="M11 7v4l3 3" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"></path></svg><div class="p-bnav-lbl">Requests</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="4" stroke="#bbb" stroke-width="1.5"></circle><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"></path></svg><div class="p-bnav-lbl">Profile</div></div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P15 — Teacher Dashboard</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P15 · Teacher</div>
+    <div class="page-name">Teacher Dashboard</div>
+    <div class="page-route">Route: /teacher</div>
+    <div class="role-badge" style="background:#EDE7F6;color:#6A1B9A;">Teacher Only</div>
+    <div class="purpose-box">Teacher's home screen after login. Shows all their courses with progress indicators, assignment counts, and pending class change request alerts.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>"+ New Course" button in top bar</li>
+        <li>School switcher (if teacher belongs to multiple schools)</li>
+        <li>Course cards: name, assigned classes, live/total assignments, pending requests badge</li>
+        <li>Disabled courses shown greyed out with "Course Disabled" badge</li>
+        <li>Bottom navigation: Dashboard | Courses | Requests | Profile</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Only shows courses where teacher is current owner</li>
+        <li>If principal reassigns a course → it disappears from this dashboard</li>
+        <li>Teacher can still VIEW disabled courses but students cannot see them</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P16: COURSE DETAIL -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="t-topbar">
+        <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-bottom:4px;">← My Courses</div>
+        <div class="p-name">English Speaking</div>
+        <div class="p-greeting">Grade 5, Grade 6 · 4 assignments</div>
+      </div>
+      <div class="p-nav"><div class="p-tab act">All (4)</div><div class="p-tab">Live (3)</div><div class="p-tab">Unlive (1)</div></div>
+      <div class="p-list">
+        <div class="t-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div class="t-card-title" style="margin:0;">Introduce Yourself</div>
+            <div class="toggle-inline">
+              <div class="toggle-sm on"><div class="tk-sm"></div></div>
+              <span class="t-badge t-live" style="font-size:9px;">Live</span>
+            </div>
+          </div>
+          <div class="t-card-sub">Due: Apr 20 · 12 submitted</div>
+          <div class="t-card-footer"><span style="font-size:9px;color:#aaa;">Audio only</span><button class="p-btn reassign" style="font-size:9px;">View Submissions</button></div>
+        </div>
+        <div class="t-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div class="t-card-title" style="margin:0;">My Favorite Food</div>
+            <div class="toggle-inline">
+              <div class="toggle-sm on"><div class="tk-sm"></div></div>
+              <span class="t-badge t-live" style="font-size:9px;">Live</span>
+            </div>
+          </div>
+          <div class="t-card-sub">Due: Apr 25 · 8 submitted</div>
+          <div class="t-card-footer"><span style="font-size:9px;color:#aaa;">Audio + Image</span><button class="p-btn reassign" style="font-size:9px;">View Submissions</button></div>
+        </div>
+        <div class="t-card" style="opacity:0.7;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div class="t-card-title" style="margin:0;">My Hometown</div>
+            <div class="toggle-inline">
+              <div class="toggle-sm off"><div class="tk-sm"></div></div>
+              <span class="t-badge t-unlive" style="font-size:9px;">Unlive</span>
+            </div>
+          </div>
+          <div class="t-card-sub">Due: Apr 30 · Draft</div>
+        </div>
+      </div>
+      <div style="position:absolute;bottom:16px;right:14px;">
+        <div style="background:linear-gradient(135deg,#4776E6,#8E54E9);color:#fff;border:none;border-radius:12px;padding:8px 14px;font-size:11px;font-weight:800;font-family:var(--nunito);cursor:pointer;">+ New Assignment</div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P16 — Course Detail</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P16 · Teacher</div>
+    <div class="page-name">Course Detail &amp; Assignments</div>
+    <div class="page-route">Route: /teacher/courses/:id</div>
+    <div class="role-badge" style="background:#EDE7F6;color:#6A1B9A;">Teacher Only</div>
+    <div class="purpose-box">Shows all assignments within a course. Teacher can toggle each assignment live/unlive, see submission counts, and create new assignments.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Filter tabs: All | Live | Unlive</li>
+        <li>Each assignment: title, due date, submission count, submission types</li>
+        <li>Live/Unlive toggle switch per assignment (inline)</li>
+        <li>"View Submissions" button per assignment</li>
+        <li>Floating "+ New Assignment" button</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Live toggle → immediately shows/hides from students (no delay)</li>
+        <li>Unlive assignment → submissions kept in DB but hidden from students</li>
+        <li>Assignments default to LIVE when created (PRD decision)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P17: CREATE ASSIGNMENT -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen">
+      <div class="t-topbar" style="padding:20px 14px 14px;">
+        <div style="font-size:10px;color:rgba(255,255,255,0.8);margin-bottom:4px;">← English Speaking</div>
+        <div class="p-name">New Assignment</div>
+      </div>
+      <div class="form-body" style="overflow-y:auto;max-height:400px;">
+        <label class="f-label">Title</label><input class="f-input" value="Describe Your School" readonly="">
+        <label class="f-label">Instructions</label>
+        <div style="border:1.5px solid #e0e0e0;border-radius:10px;padding:8px 10px;font-size:11px;color:#555;margin-bottom:10px;min-height:52px;background:#fafafa;">Record a 1-2 minute audio describing your school, classrooms, and favorite places.</div>
+        <label class="f-label">Submission Types Allowed</label>
+        <div style="display:flex;gap:5px;margin-bottom:10px;">
+          <div style="border:1.5px solid #8E54E9;border-radius:8px;padding:5px 8px;font-size:10px;font-weight:700;color:#8E54E9;background:#F3EEFF;">✓ Audio</div>
+          <div style="border:1.5px solid #e0e0e0;border-radius:8px;padding:5px 8px;font-size:10px;font-weight:700;color:#bbb;">Text</div>
+          <div style="border:1.5px solid #8E54E9;border-radius:8px;padding:5px 8px;font-size:10px;font-weight:700;color:#8E54E9;background:#F3EEFF;">✓ Image</div>
+        </div>
+        <label class="f-label">Target Classes</label>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">
+          <div style="background:#E3F2FD;color:#1565C0;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;">Grade 5</div>
+          <div style="background:#E3F2FD;color:#1565C0;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;">Grade 6</div>
+          <div style="border:1px dashed #ddd;border-radius:6px;padding:3px 8px;font-size:10px;color:#aaa;">+ Add</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <div style="flex:1;"><label class="f-label">Due Date</label><input class="f-input" value="Apr 30, 2026" readonly=""></div>
+          <div style="flex:1;"><label class="f-label">Teacher Score</label><input class="f-input" value="10 pts" readonly=""></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#f8f8f8;border-radius:10px;padding:8px 12px;margin-bottom:10px;">
+          <div><div style="font-size:11px;font-weight:700;color:#333;">Accept Late Submissions</div><div style="font-size:9px;color:#aaa;">Allow after due date</div></div>
+          <div class="toggle off"><div class="t-knob"></div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#f8f8f8;border-radius:10px;padding:8px 12px;margin-bottom:12px;">
+          <div><div style="font-size:11px;font-weight:700;color:#333;">Status</div><div style="font-size:9px;color:#aaa;">Students can see this</div></div>
+          <div style="display:flex;align-items:center;gap:5px;"><div class="toggle on"><div class="t-knob"></div></div><span style="font-size:10px;font-weight:700;color:#2E7D32;">Live</span></div>
+        </div>
+        <button class="teacher-btn">Save Assignment</button>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P17 — Create Assignment</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P17 · Teacher</div>
+    <div class="page-name">Create Assignment</div>
+    <div class="page-route">Route: /teacher/assignments/new</div>
+    <div class="role-badge" style="background:#EDE7F6;color:#6A1B9A;">Teacher Only</div>
+    <div class="purpose-box">Full form to create a new assignment. Teacher sets all parameters including allowed submission types, target classes, due date, late submission toggle, teacher score, and live/unlive status.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Title and Instructions fields</li>
+        <li>Optional instruction media (attach image or record audio brief)</li>
+        <li>Submission types: multi-select checkboxes (Text / Image / Audio)</li>
+        <li>Target classes: multi-select pills (Grade 1-12)</li>
+        <li>Due date picker and Teacher Score input (side by side)</li>
+        <li>Accept Late Submissions toggle (default: OFF)</li>
+        <li>Status toggle: Live/Unlive (default: Live)</li>
+        <li>"Save Assignment" button</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>At least one submission type must be selected</li>
+        <li>Teacher score = base points auto-awarded on submission (not a max cap)</li>
+        <li>Default status: LIVE — students see immediately on save</li>
+        <li>Assignment saved to DB + assignment_classes junction table</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P18: SUBMISSIONS VIEW -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="t-topbar" style="padding:20px 14px 14px;">
+        <div style="font-size:10px;color:rgba(255,255,255,0.8);margin-bottom:4px;">← Introduce Yourself</div>
+        <div class="p-name">Submissions</div>
+        <div class="p-greeting">12 submitted · 5 pending</div>
+      </div>
+      <div class="p-nav"><div class="p-tab act">All (17)</div><div class="p-tab">Submitted (12)</div><div class="p-tab">Pending (5)</div></div>
+      <div class="p-list">
+        <div class="t-card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <div class="p-avatar" style="background:#11998e;width:30px;height:30px;border-radius:8px;font-size:10px;">JD</div>
+            <div><div style="font-size:11px;font-weight:800;color:#222;">Juan dela Cruz</div><div style="font-size:9px;color:#aaa;">Grade 5 · Apr 18, 2:30pm</div></div>
+            <span class="t-badge t-live" style="margin-left:auto;font-size:9px;">Audio</span>
+          </div>
+          <div style="background:#f0f0f0;border-radius:8px;padding:8px;margin-bottom:6px;">
+            <div style="font-size:9px;color:#888;margin-bottom:4px;">Transcript preview</div>
+            <div style="font-size:10px;color:#555;">"My school is St. Mary Academy. It is a big and beautiful school with many classrooms..."</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <div style="flex:1;background:#E8F5E9;border-radius:6px;padding:4px;text-align:center;"><div style="font-size:9px;color:#2E7D32;font-weight:700;">Teacher</div><div style="font-size:12px;font-weight:900;color:#2E7D32;">10</div></div>
+            <div style="flex:1;background:#E3F2FD;border-radius:6px;padding:4px;text-align:center;"><div style="font-size:9px;color:#1565C0;font-weight:700;">Words</div><div style="font-size:12px;font-weight:900;color:#1565C0;">48</div></div>
+            <div style="flex:1;background:#EDE7F6;border-radius:6px;padding:4px;text-align:center;"><div style="font-size:9px;color:#6A1B9A;font-weight:700;">Unique×3</div><div style="font-size:12px;font-weight:900;color:#6A1B9A;">105</div></div>
+            <div style="flex:1;background:#FFF3E0;border-radius:6px;padding:4px;text-align:center;"><div style="font-size:9px;color:#E65100;font-weight:700;">Total</div><div style="font-size:12px;font-weight:900;color:#E65100;">163</div></div>
+          </div>
+        </div>
+        <div class="t-card" style="opacity:0.6;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="p-avatar" style="background:#ddd;width:30px;height:30px;border-radius:8px;font-size:10px;color:#aaa;">MS</div>
+            <div><div style="font-size:11px;font-weight:800;color:#aaa;">Maria Santos</div><div style="font-size:9px;color:#ccc;">Grade 5 · Not submitted yet</div></div>
+          </div>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P18 — View Submissions</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P18 · Teacher</div>
+    <div class="page-name">View Submissions</div>
+    <div class="page-route">Route: /teacher/assignments/:id/submissions</div>
+    <div class="role-badge" style="background:#EDE7F6;color:#6A1B9A;">Teacher Only</div>
+    <div class="purpose-box">Teacher views all student submissions for a specific assignment. Shows full score breakdown for audio submissions including transcript preview, word counts, and score components.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Filter tabs: All | Submitted | Pending (not submitted)</li>
+        <li>Submitted card: student name, class, submission time, type badge</li>
+        <li>Audio submissions: transcript preview shown</li>
+        <li>Score breakdown: Teacher Points + Word Score + Unique Word Score × 3 = Total</li>
+        <li>Pending students shown greyed out</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Score formula: Teacher Score + (total_words × 1) + (unique_words × 3)</li>
+        <li>Text/image submissions: teacher score only (no word bonus)</li>
+        <li>Disabled students' submissions are hidden (is_visible = false)</li>
+        <li>Teacher cannot edit or delete submissions</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- SECTION 4: STUDENT -->
+<!-- ══════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num" style="color:#00695C;">Section 04</div>
+  <div class="section-title" style="color:#1a1a1a;">Student Screens</div>
+  <div class="section-desc">Student screens are simple and focused on consuming content and submitting assignments. Students see only LIVE assignments assigned to their class. Gamification via leaderboard and badges motivates consistent participation.</div>
+  <div class="section-line" style="background:#00695C;"></div>
+</div>
+
+<!-- P19: STUDENT DASHBOARD -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="s-topbar">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div><div class="p-greeting">Good morning,</div><div class="p-name">Juan</div></div>
+          <div style="background:rgba(255,255,255,0.25);border-radius:8px;padding:4px 10px;font-size:10px;color:#fff;font-weight:700;">Grade 5</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:8px 12px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+          <div><div style="font-size:9px;color:rgba(255,255,255,0.7);">Weekly Score</div><div style="font-size:18px;font-weight:900;color:#fff;">163 pts</div></div>
+          <div><div style="font-size:9px;color:rgba(255,255,255,0.7);">Your Rank</div><div style="font-size:18px;font-weight:900;color:#fff;">#4</div></div>
+          <div><div style="font-size:9px;color:rgba(255,255,255,0.7);">Streak</div><div style="font-size:18px;font-weight:900;color:#fff;">🔥 3</div></div>
+        </div>
+      </div>
+      <div class="p-list">
+        <div class="s-course-card">
+          <div class="s-course-name">English Speaking</div>
+          <div class="s-course-teacher">Teacher: Liza Cruz</div>
+          <div class="s-progress"><div class="s-progress-fill" style="width:60%;"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:9px;color:#aaa;">3 of 5 submitted</span><span class="s-pending">2 pending</span></div>
+        </div>
+        <div class="s-course-card">
+          <div class="s-course-name">Math Fundamentals</div>
+          <div class="s-course-teacher">Teacher: Jose Dela Cruz</div>
+          <div class="s-progress"><div class="s-progress-fill" style="width:100%;background:linear-gradient(90deg,#2E86C1,#00BCD4);"></div></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:9px;color:#aaa;">All submitted!</span><span class="badge-sm badge-active" style="font-size:8px;">✓ Done</span></div>
+        </div>
+      </div>
+      <div class="p-bottom">
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="#00695C"></rect><rect x="12" y="3" width="7" height="7" rx="2" fill="#ddd"></rect><rect x="3" y="12" width="7" height="7" rx="2" fill="#ddd"></rect><rect x="12" y="12" width="7" height="7" rx="2" fill="#ddd"></rect></svg><div class="p-bnav-lbl" style="color:#00695C;">Home</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><path d="M11 3l2.5 5.5L19 9.5l-4 4 1 5.5L11 16l-5 3 1-5.5-4-4 5.5-1z" stroke="#bbb" stroke-width="1.5" fill="none"></path></svg><div class="p-bnav-lbl">Leaderboard</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#bbb" stroke-width="1.5"></circle><path d="M8 11l2 2 4-4" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"></path></svg><div class="p-bnav-lbl">Badges</div></div>
+        <div class="p-bnav"><svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="4" stroke="#bbb" stroke-width="1.5"></circle><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"></path></svg><div class="p-bnav-lbl">Profile</div></div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P19 — Student Dashboard</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P19 · Student</div>
+    <div class="page-name">Student Dashboard</div>
+    <div class="page-route">Route: /student</div>
+    <div class="role-badge" style="background:#E0F2F1;color:#00695C;">Student Only</div>
+    <div class="purpose-box">Student's home screen. Shows enrolled courses with progress, plus a quick weekly score and rank summary card at the top for gamification engagement.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Greeting with class badge (e.g. "Grade 5")</li>
+        <li>Quick stats banner: Weekly Score, Rank, Streak count</li>
+        <li>Course cards: name, teacher, submission progress bar, pending count</li>
+        <li>Bottom navigation: Home | Leaderboard | Badges | Profile</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Only LIVE courses visible (is_active = true, is_live = true for assignments)</li>
+        <li>Only courses assigned to student's class shown</li>
+        <li>Courses from student's fixed school only</li>
+        <li>Disabled courses NOT shown to student</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P20: ASSIGNMENT DETAIL -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="s-topbar" style="padding:20px 14px 14px;">
+        <div style="font-size:10px;color:rgba(255,255,255,0.8);margin-bottom:4px;">← English Speaking</div>
+        <div class="p-name">Introduce Yourself</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+          <span style="background:rgba(255,255,255,0.2);border-radius:6px;padding:3px 8px;font-size:10px;color:#fff;font-weight:700;">Due: Apr 20</span>
+          <span style="background:rgba(255,255,255,0.2);border-radius:6px;padding:3px 8px;font-size:10px;color:#fff;font-weight:700;">🎙 Audio</span>
+        </div>
+      </div>
+      <div class="p-list">
+        <div style="background:#fff;border-radius:12px;padding:12px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Instructions</div>
+          <div style="font-size:12px;color:#444;line-height:1.6;">Record a 1-2 minute audio introducing yourself. Tell us your name, your favorite subject, and what you want to be when you grow up.</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;">Score Info</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <div style="flex:1;background:#E8F5E9;border-radius:8px;padding:6px;text-align:center;"><div style="font-size:9px;color:#2E7D32;font-weight:700;">Base</div><div style="font-size:14px;font-weight:900;color:#2E7D32;">10</div></div>
+            <div style="flex:1;background:#E3F2FD;border-radius:8px;padding:6px;text-align:center;"><div style="font-size:9px;color:#1565C0;font-weight:700;">+Words</div><div style="font-size:14px;font-weight:900;color:#1565C0;">×1</div></div>
+            <div style="flex:1;background:#EDE7F6;border-radius:8px;padding:6px;text-align:center;"><div style="font-size:9px;color:#6A1B9A;font-weight:700;">Unique</div><div style="font-size:14px;font-weight:900;color:#6A1B9A;">×3</div></div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#11998e,#38ef7d);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:6px;">Ready to submit?</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.8);margin-bottom:10px;">Record your audio and submit before the due date</div>
+          <button style="background:#fff;color:#11998e;border:none;border-radius:10px;padding:10px 24px;font-size:13px;font-weight:800;font-family:var(--nunito);cursor:pointer;">Submit Assignment →</button>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P20 — Assignment Detail</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P20 · Student</div>
+    <div class="page-name">Assignment Detail</div>
+    <div class="page-route">Route: /student/assignments/:id</div>
+    <div class="role-badge" style="background:#E0F2F1;color:#00695C;">Student Only</div>
+    <div class="purpose-box">Student views the full assignment — instructions, due date, allowed submission types, and score breakdown so they understand how points are calculated before submitting.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Assignment title, due date, submission type badges in top bar</li>
+        <li>Full instructions text</li>
+        <li>Optional instruction media (image or audio player)</li>
+        <li>Score info: Base points + word multipliers explained</li>
+        <li>"Submit Assignment" CTA button</li>
+        <li>If already submitted: shows submitted answer (read-only)</li>
+        <li>If past due date + no late: shows "This assignment is closed"</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>UNLIVE assignments → student redirected to course page</li>
+        <li>After due date + accept_late = OFF → submit button hidden</li>
+        <li>After due date + accept_late = ON → submit button with "late" warning</li>
+        <li>Submitted → button replaced with read-only submission view</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P21: SUBMIT AUDIO -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner" style="position:relative;"><div class="screen" style="background:#F5F6FA;">
+      <div class="s-topbar" style="padding:20px 14px 14px;">
+        <div style="font-size:10px;color:rgba(255,255,255,0.8);margin-bottom:4px;">← Introduce Yourself</div>
+        <div class="p-name">Submit Assignment</div>
+      </div>
+      <div class="p-list">
+        <div class="s-submit-types">
+          <div class="s-type-btn active">🎙 Audio</div>
+          <div class="s-type-btn">📝 Text</div>
+          <div class="s-type-btn">🖼 Image</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:11px;color:#aaa;margin-bottom:8px;">Tap to start recording</div>
+          <div class="record-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="9" y="2" width="6" height="12" rx="3" fill="#f44336"></rect><path d="M5 10a7 7 0 0014 0" stroke="#f44336" stroke-width="2" stroke-linecap="round"></path><path d="M12 19v3M9 22h6" stroke="#f44336" stroke-width="2" stroke-linecap="round"></path></svg>
+          </div>
+          <div class="record-timer">0:00</div>
+          <div style="font-size:10px;color:#aaa;">Max 3 minutes recommended</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:12px;margin-top:8px;">
+          <div style="font-size:10px;color:#aaa;margin-bottom:6px;">After recording, tap play to review before submitting</div>
+          <div style="background:#f0f0f0;border-radius:8px;padding:8px;display:flex;align-items:center;gap:8px;opacity:0.4;">
+            <div style="width:28px;height:28px;background:#ddd;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;">▶</div>
+            <div style="flex:1;height:3px;background:#ddd;border-radius:2px;"></div>
+            <div style="font-size:10px;color:#aaa;">0:00</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 10px 12px;">
+        <button style="background:#ddd;color:#aaa;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:800;font-family:var(--nunito);width:100%;cursor:not-allowed;">Submit</button>
+      </div>
+    </div>
+    <div class="confirm-modal">
+      <div class="confirm-sheet">
+        <div class="confirm-title">Submit your answer?</div>
+        <div class="confirm-desc">This is final. You cannot edit or resubmit after confirming.</div>
+        <button class="confirm-yes">Yes, Submit Final Answer</button>
+        <button class="confirm-no">Cancel — Let Me Review</button>
+      </div>
+    </div>
+    </div></div>
+    <div class="phone-label">P21 — Submit Audio + Confirmation</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P21 · Student</div>
+    <div class="page-name">Submit Assignment (Audio)</div>
+    <div class="page-route">Route: /student/assignments/:id/submit</div>
+    <div class="role-badge" style="background:#E0F2F1;color:#00695C;">Student Only</div>
+    <div class="purpose-box">Student records and submits their audio answer. Includes a confirmation modal before final submission since resubmission is NOT allowed. Shows all available submission type tabs.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Submission type tabs (only shows types teacher allowed)</li>
+        <li>Audio tab: large record button, timer, playback player</li>
+        <li>Submit button (disabled until recording done)</li>
+        <li>Confirmation modal: "This is final. You cannot resubmit."</li>
+        <li>"Yes, Submit Final Answer" + "Cancel — Let Me Review" buttons</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Uses MediaRecorder API (native Android Chrome — no external API)</li>
+        <li>On confirm: audio uploaded to Supabase Storage</li>
+        <li>Teacher score auto-awarded instantly on submission</li>
+        <li>Web Speech API transcribes audio in browser → words counted → score saved</li>
+        <li>ONE submission per student — enforced at database level</li>
+        <li>No resubmission under any circumstance</li>
+      </ul>
+    </div>
+    <div class="note-box"><strong>PRD Note:</strong> Web Speech API (Google's free engine in Android Chrome) handles transcription. Total Score = Teacher Score + (Total Words × 1) + (Unique Words × 3)</div>
+  </div>
+</div>
+
+<!-- P22: LEADERBOARD -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="s-topbar" style="padding:20px 14px 14px;">
+        <div class="p-name">Leaderboard</div>
+        <div class="p-greeting">St. Mary Academy</div>
+        <div style="display:flex;background:rgba(255,255,255,0.15);border-radius:8px;margin-top:8px;padding:2px;">
+          <div style="flex:1;text-align:center;padding:5px;background:#fff;border-radius:6px;font-size:11px;font-weight:800;color:#11998e;">Weekly</div>
+          <div style="flex:1;text-align:center;padding:5px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);">Monthly</div>
+        </div>
+      </div>
+      <div class="p-list">
+        <div class="s-score-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div><div class="s-rank-label">Your Rank This Week</div><div class="s-rank">#4</div></div>
+            <div style="text-align:right;"><div class="s-rank-label">Your Score</div><div class="s-score-pts">163 pts</div></div>
+          </div>
+          <div class="s-breakdown">
+            <div class="s-bp"><div class="s-bp-n">10</div><div class="s-bp-l">Teacher</div></div>
+            <div class="s-bp"><div class="s-bp-n">48</div><div class="s-bp-l">Words</div></div>
+            <div class="s-bp"><div class="s-bp-n">105</div><div class="s-bp-l">Unique×3</div></div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:12px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Top 3 This Week</div>
+          <div style="display:flex;align-items:center;justify-content:space-around;">
+            <div style="text-align:center;"><div style="width:36px;height:36px;background:#C0C0C0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;margin:0 auto 3px;">🥈</div><div style="font-size:9px;color:#888;">2nd</div><div style="font-size:12px;font-weight:900;color:#222;">312</div></div>
+            <div style="text-align:center;"><div style="width:44px;height:44px;background:#FFD700;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;margin:0 auto 3px;">🥇</div><div style="font-size:9px;color:#888;">1st</div><div style="font-size:14px;font-weight:900;color:#222;">428</div></div>
+            <div style="text-align:center;"><div style="width:36px;height:36px;background:#CD7F32;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;margin:0 auto 3px;">🥉</div><div style="font-size:9px;color:#888;">3rd</div><div style="font-size:12px;font-weight:900;color:#222;">285</div></div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:10px;color:#aaa;">Resets in <strong style="color:#11998e;">3 days</strong> (Monday midnight)</div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P22 — Leaderboard</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P22 · Student</div>
+    <div class="page-name">Leaderboard</div>
+    <div class="page-route">Route: /student/leaderboard</div>
+    <div class="role-badge" style="background:#E0F2F1;color:#00695C;">Student Only</div>
+    <div class="purpose-box">Student sees their personal rank and score within their school. Top 3 shown anonymized for context. Weekly and Monthly tabs. Score breakdown shows exactly how points were earned.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Weekly / Monthly toggle tabs</li>
+        <li>Personal rank card: rank number, total score, breakdown</li>
+        <li>Score breakdown: Teacher pts + Word pts + Unique Word pts</li>
+        <li>Top 3 podium (anonymized — rank + score only, no names)</li>
+        <li>Reset countdown: "Resets in X days"</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Student sees ONLY their own rank and score — not other students' identities</li>
+        <li>Weekly resets: every Monday midnight</li>
+        <li>Monthly resets: 1st of every month midnight</li>
+        <li>Raw submission scores kept in DB forever — only leaderboard aggregates reset</li>
+        <li>Students compete within their school only</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P23: BADGES -->
+<div class="page-block">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen" style="background:#F5F6FA;">
+      <div class="s-topbar" style="padding:20px 14px 14px;">
+        <div class="p-name">My Achievements</div>
+        <div class="p-greeting">St. Mary Academy</div>
+      </div>
+      <div class="p-list">
+        <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Streaks</div>
+        <div class="badge-card">
+          <div class="badge-icon" style="background:#FFF3E0;">🔥</div>
+          <div><div class="badge-name">Weekly Streak</div><div class="badge-count">Submitted at least once per week</div></div>
+          <div class="badge-num" style="color:#E65100;">7</div>
+        </div>
+        <div class="badge-card">
+          <div class="badge-icon" style="background:#E8F5E9;">🏆</div>
+          <div><div class="badge-name">Monthly Streak</div><div class="badge-count">Submitted at least once per month</div></div>
+          <div class="badge-num" style="color:#2E7D32;">2</div>
+        </div>
+        <div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin:8px 0 6px;">Rank Achievements</div>
+        <div class="badge-card">
+          <div class="badge-icon" style="background:#FFF9C4;">⭐</div>
+          <div><div class="badge-name">Weekly Top 5</div><div class="badge-count">Ranked in Top 5 this week</div></div>
+          <div class="badge-num" style="color:#F9A825;">3</div>
+        </div>
+        <div class="badge-card" style="opacity:0.4;">
+          <div class="badge-icon" style="background:#f0f0f0;">🏅</div>
+          <div><div class="badge-name">Monthly Top 5</div><div class="badge-count">Not earned yet</div></div>
+          <div style="margin-left:auto;font-size:18px;">🔒</div>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P23 — Badges &amp; Achievements</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P23 · Student</div>
+    <div class="page-name">Badges &amp; Achievements</div>
+    <div class="page-route">Route: /student/badges</div>
+    <div class="role-badge" style="background:#E0F2F1;color:#00695C;">Student Only</div>
+    <div class="purpose-box">Student's achievement collection. Shows streak counts and rank achievement counts. Badges accumulate permanently and never reset. Unearned badges shown locked for motivation.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Streaks section: Weekly Streak 🔥 and Monthly Streak 🏆</li>
+        <li>Each badge shows icon, name, description, and count</li>
+        <li>Rank Achievements: Weekly Top 5 ⭐ and Monthly Top 5 🏅</li>
+        <li>Unearned badges greyed out with lock icon</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>Weekly Streak: submitted at least 1 assignment in the week</li>
+        <li>Monthly Streak: submitted at least 1 assignment in the month</li>
+        <li>Top 5 checked at leaderboard reset time</li>
+        <li>Badge counts increment and NEVER decrease or reset</li>
+        <li>Stored permanently in badges table in database</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- P24: STUDENT PROFILE -->
+<div class="page-block reverse">
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-inner"><div class="screen">
+      <div class="profile-top">
+        <div class="profile-avatar">JD</div>
+        <div class="profile-name">Juan dela Cruz</div>
+        <div class="profile-class">Grade 5 · St. Mary Academy</div>
+      </div>
+      <div class="profile-body">
+        <div class="profile-section">Account Info</div>
+        <div class="profile-row"><span class="profile-row-label">Full Name</span><span class="profile-row-value">Juan dela Cruz</span></div>
+        <div class="profile-row"><span class="profile-row-label">Phone</span><span class="profile-row-value">09XX XXX XXXX</span></div>
+        <div class="profile-row"><span class="profile-row-label">School</span><span class="profile-row-value" style="color:#aaa;">St. Mary Academy 🔒</span></div>
+        <div class="profile-section">Class</div>
+        <div class="profile-row">
+          <div><span class="profile-row-label">Current Class</span><div style="font-size:12px;font-weight:800;color:#222;margin-top:2px;">Grade 5</div></div>
+          <button class="profile-change-btn">Change Class</button>
+        </div>
+        <div style="background:#E0F2F1;border-radius:10px;padding:10px;margin-bottom:4px;">
+          <div style="font-size:10px;color:#00695C;font-weight:700;margin-bottom:3px;">How class change works</div>
+          <div style="font-size:10px;color:#555;line-height:1.5;">Select a new grade → request sent to your teacher → teacher approves → your class is updated</div>
+        </div>
+        <div class="profile-section">Security</div>
+        <div class="profile-row"><span class="profile-row-label">Password</span><button style="background:none;border:none;font-size:11px;color:#2E86C1;font-weight:700;cursor:pointer;font-family:var(--nunito);">Change Password</button></div>
+        <button class="profile-logout">Log Out</button>
+      </div>
+    </div></div></div>
+    <div class="phone-label">P24 — Student Profile</div>
+  </div>
+  <div class="explanation">
+    <div class="page-num">P24 · Student</div>
+    <div class="page-name">Student Profile</div>
+    <div class="page-route">Route: /student/profile</div>
+    <div class="role-badge" style="background:#E0F2F1;color:#00695C;">Student Only</div>
+    <div class="purpose-box">Student manages their account. School is shown as locked (cannot change). Class can be changed by requesting teacher approval. Clear explanation of the class change process is shown.</div>
+    <div class="exp-section">
+      <div class="exp-section-title">What's on this screen</div>
+      <ul class="exp-list">
+        <li>Profile avatar with initials, name, class + school in header</li>
+        <li>Full name and phone (read-only)</li>
+        <li>School shown as locked with 🔒 icon — cannot change</li>
+        <li>Current class with "Change Class" button</li>
+        <li>Info box explaining the class change approval flow</li>
+        <li>Change Password link</li>
+        <li>Log Out button</li>
+      </ul>
+    </div>
+    <div class="exp-section">
+      <div class="exp-section-title">Logic &amp; Rules (PRD aligned)</div>
+      <ul class="exp-list">
+        <li>School is FIXED forever at signup — no option to change it</li>
+        <li>Class change → request sent to teacher → teacher approves/rejects</li>
+        <li>Only ONE pending class change request at a time</li>
+        <li>After rejection → student can re-request immediately</li>
+        <li>If no enrolled courses → class change is instant (no teacher needed)</li>
+      </ul>
+    </div>
+    <div class="note-box"><strong>PRD Note:</strong> Phone number is the student's login credential and cannot be changed. If a student needs to join a different school, they must create a new account.</div>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<div style="background:#1E3A5F;padding:40px;text-align:center;margin-top:2px;">
+  <div style="font-family:var(--nunito);font-size:22px;font-weight:900;color:#fff;margin-bottom:8px;">EduVoice LMS</div>
+  <div style="font-size:14px;color:rgba(255,255,255,0.6);margin-bottom:4px;">UI Design Walkthrough — Aligned with PRD v4.0</div>
+  <div style="font-size:13px;color:rgba(255,255,255,0.4);">April 2026 · React + Supabase + Vercel · Mobile First (Android Chrome)</div>
+</div>
+
+
+
+</body></html>

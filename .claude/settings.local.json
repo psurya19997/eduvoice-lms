@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pandoc docs/EduVoice_LMS_PRD_v4_FINAL.docx -o /tmp/prd.md)",
+      "Read(//tmp/**)",
+      "Bash(where pandoc:*)",
+      "Bash(python \"C:/Users/surya/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/9a85300c-dec2-4098-a903-6d21e5a606ae/daabfee1-ecb4-40a7-9434-1f67e6ab8fb8/skills/docx/scripts/office/unpack.py\" docs/EduVoice_LMS_PRD_v4_FINAL.docx /tmp/prd_unpacked/)",
+      "Bash(cygpath -w /tmp/prd_unpacked/word/)",
+      "Bash(python -c ':*)",
+      "Read(//c/Users/surya/AppData/Local/Temp/**)",
+      "Bash(npm --version)",
+      "Bash(npm run:*)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
