@@ -216,7 +216,7 @@ function CourseCard({ group }) {
   const pct = group.total === 0 ? 0 : Math.round((group.submitted / group.total) * 100);
   return (
     <Link
-      to={`/student/assignments/${group.nextAssignmentId}`}
+      to={`/student/courses/${group.id}`}
       className="
         relative bg-white rounded-3xl ring-1 ring-slate-200 p-4
         hover:ring-slate-300 active:scale-[0.99] transition
