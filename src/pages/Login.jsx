@@ -111,7 +111,8 @@ export default function Login() {
         .from('profiles')
         .select('id, first_name, is_active')
         .eq('role', 'student')
-        .eq('phone', phoneDigits);
+        .eq('phone', phoneDigits)
+	.eq('is_active', true);
       if (pErr) throw pErr;
       if (!data || data.length === 0) {
         throw new Error('No account found with this phone.');
