@@ -7,6 +7,7 @@ import TeacherPassword from './pages/TeacherPassword.jsx';
 import Pending from './pages/Pending.jsx';
 import StudentSignup from './pages/StudentSignup.jsx';
 import Login from './pages/Login.jsx';
+import StudentForgotPassword from './pages/StudentForgotPassword.jsx';
 import TeacherDashboard from './pages/TeacherDashboard.jsx';
 import TeacherCourseNew from './pages/TeacherCourseNew.jsx';
 import TeacherCourseDetail from './pages/TeacherCourseDetail.jsx';
@@ -26,6 +27,7 @@ import PrincipalTeachers from './pages/PrincipalTeachers.jsx';
 import PrincipalCourses from './pages/PrincipalCourses.jsx';
 import PrincipalRequests from './pages/PrincipalRequests.jsx';
 import PrincipalSettings from './pages/PrincipalSettings.jsx';
+import PrincipalStudents from './pages/PrincipalStudents.jsx';
 
 // Placeholder — each real screen will replace this as we build.
 function Placeholder({ title }) {
@@ -49,6 +51,7 @@ export default function App() {
         <Route path="/signup/teacher/password" element={<TeacherPassword />} />
 	<Route path="/teacher/profile" element={<TeacherProfile />} />
         <Route path="/signup/student" element={<StudentSignup />} />
+	<Route path="/forgot-password" element={<StudentForgotPassword />} />
         <Route path="/login" element={<Login />} />
         <Route path="/pending" element={<Pending />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
@@ -65,6 +68,7 @@ export default function App() {
 	<Route path="/student/profile" element={<StudentProfile />} />
 	<Route path="/principal" element={<PrincipalDashboard />} />
 	<Route path="/principal/teachers" element={<PrincipalTeachers />} />
+	<Route path="/principal/students" element={<PrincipalStudents />} />
 	<Route path="/principal/courses" element={<PrincipalCourses />} />
 	<Route path="/principal/requests" element={<PrincipalRequests />} />
 	<Route path="/principal/settings" element={<PrincipalSettings />} />

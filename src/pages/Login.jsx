@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import BackButton from '../components/BackButton.jsx';
 import { supabase } from '../lib/supabase.js';
 import { studentSyntheticEmail } from '../lib/studentEmail.js';
 
@@ -8,9 +7,9 @@ import { studentSyntheticEmail } from '../lib/studentEmail.js';
  * Login — PRD §3.1 (teacher), §3.2 (student), §2.1/§2.2 (principal/super admin).
  *
  * Three tabs:
- *   - Student   → phone-first smart lookup (phone → [pick name] → password)
- *   - Teacher   → email + password
- *   - Principal → email + password (same backend, different role gate)
+ * - Student   → phone-first smart lookup (phone → [pick name] → password)
+ * - Teacher   → email + password
+ * - Principal → email + password (same backend, different role gate)
  */
 const TABS = [
   { id: 'student',   label: 'Student'   },
@@ -34,7 +33,8 @@ export default function Login() {
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  // Forgot-password OTP flow: idle → otp-sent → verified → done
+
+  // Forgot-password OTP flow (for Staff)
   const [forgotStep, setForgotStep] = useState('idle');
   const [otpCode, setOtpCode] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -43,6 +43,7 @@ export default function Login() {
   const resetForgot = () => {
     setForgotStep('idle'); setOtpCode(''); setNewPw(''); setConfirmPw(''); setError(null);
   };
+
   const forgotSendOtp = async () => {
     const clean = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) { setError('Enter a valid email first.'); return; }
@@ -52,6 +53,7 @@ export default function Login() {
     if (e) return setError(e.message);
     setForgotStep('otp-sent');
   };
+
   const forgotVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
     setSubmitting(true); setError(null);
@@ -60,6 +62,7 @@ export default function Login() {
     if (e) return setError('Invalid or expired code.');
     setForgotStep('verified');
   };
+
   const forgotSavePw = async () => {
     if (newPw.length < 6) return setError('Password must be at least 6 characters.');
     if (newPw !== confirmPw) return setError('Passwords do not match.');
@@ -86,7 +89,6 @@ export default function Login() {
     setError(null);
     if (studentStep === 3) {
       setPassword('');
-      // If we had multiple matches, go back to picker; else back to phone
       setStudentStep(matches.length > 1 ? 2 : 1);
       if (matches.length <= 1) setChosen(null);
       return;
@@ -210,7 +212,6 @@ export default function Login() {
     }
   };
 
-  // Determine back behavior for the top BackButton
   const handleBack = () => {
     if (tab === 'student' && studentStep > 1) {
       backFromStudentStep();
@@ -219,7 +220,6 @@ export default function Login() {
     }
   };
 
-  // Shared validators
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneValid = phone.replace(/\D/g, '').length >= 7;
 
@@ -229,8 +229,7 @@ export default function Login() {
         <button
           type="button"
           onClick={handleBack}
-          className="w-10 h-10 rounded-full bg-white ring-1 ring-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 active:scale-95 transition"
-          aria-label="Back"
+          className="w-10 h-10 rounded-full bg-white ring-1 ring-slate-200 flex items-center justify-center text-slate-600 active:scale-95 transition"
         >
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
             <path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -253,8 +252,6 @@ export default function Login() {
         </p>
       </div>
 
-      {/* Tabs — hidden once we're deep in the student flow so the
-          tab click can't nuke in-progress state accidentally */}
       {(tab !== 'student' || studentStep === 1) && (
         <div className="px-5 pt-6">
           <div className="grid grid-cols-3 bg-white ring-1 ring-slate-200 rounded-2xl p-1 gap-1">
@@ -266,7 +263,7 @@ export default function Login() {
                 className={`
                   h-11 rounded-xl text-[13px] font-extrabold transition
                   ${tab === t.id
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                    ? 'bg-indigo-600 text-white shadow-md'
                     : 'text-slate-500 hover:text-slate-700'}
                 `}
               >
@@ -277,7 +274,7 @@ export default function Login() {
         </div>
       )}
 
-      {/* ============ STUDENT FLOW ============ */}
+      {/* STUDENT FLOW */}
       {tab === 'student' && studentStep === 1 && (
         <form onSubmit={lookupPhone} className="flex-1 flex flex-col px-5 pt-5 pb-8 gap-4">
           <Field id="phone" label="Phone number">
@@ -287,17 +284,24 @@ export default function Login() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="9876543210"
-              autoComplete="tel"
-              inputMode="tel"
               className={inputClass}
             />
           </Field>
-
           {error && <ErrorBox message={error} />}
-
           <SubmitButton disabled={!phoneValid || submitting} submitting={submitting}>
             Next
           </SubmitButton>
+
+          {/* ADDED: Link at the start of login */}
+          <div className="text-center mt-1">
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="text-[12.5px] font-extrabold text-indigo-600 hover:text-indigo-700"
+            >
+              Forgot password or phone?
+            </button>
+          </div>
 
           <SignupHint onClick={() => navigate('/signup')} />
         </form>
@@ -305,37 +309,26 @@ export default function Login() {
 
       {tab === 'student' && studentStep === 2 && (
         <div className="flex-1 flex flex-col px-5 pt-5 pb-8 gap-3">
-          <div className="text-[12px] font-bold text-slate-500 pl-1 pb-1">
-            Select your name
-          </div>
+          <div className="text-[12px] font-bold text-slate-500 pl-1">Select your name</div>
           {matches.map((m) => (
             <button
               key={m.id}
               type="button"
               onClick={() => pickName(m)}
-              className="
-                w-full text-left bg-white rounded-2xl ring-1 ring-slate-200
-                px-4 py-4 flex items-center gap-3
-                hover:ring-indigo-400 active:scale-[0.99] transition
-              "
+              className="w-full text-left bg-white rounded-2xl ring-1 ring-slate-200 px-4 py-4 flex items-center gap-3 hover:ring-indigo-400 active:scale-[0.99] transition"
             >
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-[14px] font-extrabold shrink-0">
                 {(m.first_name ?? '?').slice(0, 1).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[15px] font-extrabold text-slate-900 truncate">
-                  {m.first_name}
-                </div>
-                <div className="text-[11.5px] font-semibold text-slate-500">
-                  Tap to continue
-                </div>
+                <div className="text-[15px] font-extrabold text-slate-900 truncate">{m.first_name}</div>
+                <div className="text-[11.5px] font-semibold text-slate-500">Tap to continue</div>
               </div>
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none" className="text-slate-300">
                 <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           ))}
-
           {error && <ErrorBox message={error} />}
         </div>
       )}
@@ -347,20 +340,10 @@ export default function Login() {
               {(chosen.first_name ?? '?').slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-extrabold text-slate-900 truncate">
-                {chosen.first_name}
-              </div>
-              <div className="text-[11.5px] font-semibold text-slate-500">
-                {phone.replace(/\D/g, '')}
-              </div>
+              <div className="text-[14px] font-extrabold text-slate-900 truncate">{chosen.first_name}</div>
+              <div className="text-[11.5px] font-semibold text-slate-500">{phone.replace(/\D/g, '')}</div>
             </div>
-            <button
-              type="button"
-              onClick={backFromStudentStep}
-              className="text-[12px] font-bold text-indigo-600 hover:text-indigo-700"
-            >
-              Change
-            </button>
+            <button type="button" onClick={backFromStudentStep} className="text-[12px] font-bold text-indigo-600">Change</button>
           </div>
 
           <Field id="pw" label="Password">
@@ -371,15 +354,13 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Your password"
-                autoComplete="current-password"
                 className={`${inputClass} pr-14`}
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPw((v) => !v)}
-                aria-label={showPw ? 'Hide password' : 'Show password'}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500"
               >
                 {showPw ? EyeOffIcon : EyeIcon}
               </button>
@@ -391,10 +372,20 @@ export default function Login() {
           <SubmitButton disabled={!password || submitting} submitting={submitting}>
             Log in
           </SubmitButton>
+
+          <div className="text-center mt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="text-[12.5px] font-extrabold text-indigo-600 hover:text-indigo-700"
+            >
+              Forgot password?
+            </button>
+          </div>
         </form>
       )}
 
-      {/* ============ TEACHER / PRINCIPAL FLOW ============ */}
+      {/* STAFF FLOW */}
       {tab !== 'student' && (
         <form onSubmit={staffLogin} className="flex-1 flex flex-col px-5 pt-5 pb-8 gap-4">
           <Field id="email" label="Email address">
@@ -404,8 +395,6 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={tab === 'teacher' ? 'you@school.edu' : 'principal@school.edu'}
-              autoComplete="email"
-              inputMode="email"
               className={inputClass}
             />
           </Field>
@@ -418,14 +407,12 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Your password"
-                autoComplete="current-password"
                 className={`${inputClass} pr-14`}
               />
               <button
                 type="button"
                 onClick={() => setShowPw((v) => !v)}
-                aria-label={showPw ? 'Hide password' : 'Show password'}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500"
               >
                 {showPw ? EyeOffIcon : EyeIcon}
               </button>
@@ -440,48 +427,46 @@ export default function Login() {
 
           {forgotStep === 'idle' && (
             <button type="button" onClick={() => { setForgotStep('start'); setError(null); }}
-              className="text-center text-[12.5px] font-extrabold text-indigo-600 hover:text-indigo-700">
+              className="text-center text-[12.5px] font-extrabold text-indigo-600">
               Forgot password?
             </button>
           )}
           {forgotStep === 'start' && (
-            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-3 flex flex-col gap-2">
-              <p className="text-[12px] font-semibold text-slate-600 px-1">We'll send a 6-digit code to the email above.</p>
+            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 flex flex-col gap-2">
+              <p className="text-[12px] font-semibold text-slate-600 px-1">We'll send a code to the email above.</p>
               <div className="flex gap-2">
-                <button type="button" onClick={forgotSendOtp} disabled={submitting} className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-[12.5px] font-extrabold disabled:bg-slate-300">Send OTP</button>
+                <button type="button" onClick={forgotSendOtp} disabled={submitting} className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-[12.5px] font-extrabold">Send OTP</button>
                 <button type="button" onClick={resetForgot} className="h-11 px-3 rounded-xl bg-white ring-1 ring-slate-200 text-slate-600 text-[12.5px] font-extrabold">Back</button>
               </div>
             </div>
           )}
           {forgotStep === 'otp-sent' && (
-            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-3 flex flex-col gap-2">
-              <p className="text-[12px] font-semibold text-slate-600 px-1">Enter the 6-digit code sent to {email.trim().toLowerCase()}.</p>
+            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 flex flex-col gap-2">
+              <p className="text-[12px] font-semibold text-slate-600 px-1">Enter code sent to {email}.</p>
               <input value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 inputMode="numeric" placeholder="••••••" maxLength={6}
                 className="w-full h-12 rounded-xl bg-white ring-1 ring-slate-200 px-4 text-center tracking-[0.6em] text-[18px] font-black" />
               <div className="flex gap-2">
-                <button type="button" onClick={forgotVerifyOtp} disabled={submitting || otpCode.length !== 6}
-                  className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-[12.5px] font-extrabold disabled:bg-slate-300">Verify</button>
+                <button type="button" onClick={forgotVerifyOtp} disabled={submitting || otpCode.length !== 6} className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-[12.5px] font-extrabold">Verify</button>
                 <button type="button" onClick={resetForgot} className="h-11 px-3 rounded-xl bg-white ring-1 ring-slate-200 text-slate-600 text-[12.5px] font-extrabold">Back</button>
               </div>
             </div>
           )}
           {forgotStep === 'verified' && (
-            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-3 flex flex-col gap-2">
+            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 flex flex-col gap-2">
               <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password"
-                className="w-full h-11 rounded-xl bg-white ring-1 ring-slate-200 px-3 text-[14px] font-semibold" />
+                className="w-full h-11 rounded-xl bg-white ring-1 ring-slate-200 px-3 text-[14px] font-semibold outline-none" />
               <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Confirm password"
-                className="w-full h-11 rounded-xl bg-white ring-1 ring-slate-200 px-3 text-[14px] font-semibold" />
+                className="w-full h-11 rounded-xl bg-white ring-1 ring-slate-200 px-3 text-[14px] font-semibold outline-none" />
               <div className="flex gap-2">
-                <button type="button" onClick={forgotSavePw} disabled={submitting}
-                  className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-[12.5px] font-extrabold disabled:bg-slate-300">Save password</button>
+                <button type="button" onClick={forgotSavePw} disabled={submitting} className="flex-1 h-11 rounded-xl bg-indigo-600 text-white text-[12.5px] font-extrabold">Save password</button>
                 <button type="button" onClick={resetForgot} className="h-11 px-3 rounded-xl bg-white ring-1 ring-slate-200 text-slate-600 text-[12.5px] font-extrabold">Back</button>
               </div>
             </div>
           )}
           {forgotStep === 'done' && (
             <div className="rounded-xl bg-emerald-50 ring-1 ring-emerald-200 px-4 py-3 text-center">
-              <p className="text-[13px] font-semibold text-emerald-700">Password updated! You can log in now.</p>
+              <p className="text-[13px] font-semibold text-emerald-700">Password updated!</p>
             </div>
           )}
 
@@ -492,7 +477,7 @@ export default function Login() {
   );
 }
 
-/* ---------- pieces ---------- */
+/* ---------- PIECES ---------- */
 
 const inputClass = `
   w-full h-14 rounded-2xl bg-white
@@ -519,11 +504,16 @@ function SubmitButton({ disabled, submitting, children }) {
         mt-2 w-full h-14 rounded-2xl text-base font-extrabold
         flex items-center justify-center gap-2 transition
         ${!disabled
-          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 active:scale-[0.98]'
+          ? 'bg-indigo-600 text-white shadow-lg active:scale-[0.98]'
           : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
       `}
     >
-      {submitting ? <Spinner /> : children}
+      {submitting ? (
+        <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+          <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      ) : children}
     </button>
   );
 }
@@ -551,23 +541,15 @@ function SignupHint({ onClick }) {
   );
 }
 
-function Spinner() {
-  return (
-    <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-      <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 const EyeIcon = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
     <path d="M2.5 10C4 6.5 6.8 4.5 10 4.5s6 2 7.5 5.5c-1.5 3.5-4.3 5.5-7.5 5.5s-6-2-7.5-5.5z" stroke="currentColor" strokeWidth="1.7" />
     <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.7" />
   </svg>
 );
+
 const EyeOffIcon = (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
     <path d="M3 3l14 14M8 4.9A8.3 8.3 0 0 1 10 4.5c3.2 0 6 2 7.5 5.5a10 10 0 0 1-2 2.7M6.2 6.2A10 10 0 0 0 2.5 10c1.5 3.5 4.3 5.5 7.5 5.5 1 0 2-.2 2.9-.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     <path d="M8.5 8.5a2.5 2.5 0 0 0 3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
   </svg>
