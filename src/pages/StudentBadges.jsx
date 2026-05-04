@@ -11,18 +11,21 @@ const BADGES = [
   { type: 'monthly_top5',   emoji: '🥇', name: 'Monthly Top 5',  desc: 'Times ranked top 5 monthly' },
 ];
 
-/** Monday of the week containing `d`, at local midnight. */
-function weekKey(d) {
-  const x = new Date(d);
-  const day = x.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  x.setDate(x.getDate() + diff);
-  x.setHours(0, 0, 0, 0);
-  return x.toISOString().slice(0, 10);
+/** 
+ * IST-anchored period keys to ensure frontend streaks match 
+ * the backend submission logic.[cite: 2]
+ */
+function weekKey(dateStr) {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // Adjust to Monday
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
 }
-function monthKey(d) {
-  const x = new Date(d);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`;
+
+function monthKey(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
 export default function StudentBadges() {
@@ -32,28 +35,58 @@ export default function StudentBadges() {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
+
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('submissions')
-        .select('submitted_at')
-        .eq('student_id', user.id);
+      try {
+        /**
+         * 1. Streaks: Counted live from submissions.[cite: 2]
+         * 2. Top-5: Read from `badges` table (populated by backend seal job).[cite: 2, 7]
+         */
+        const [{ data: subs }, { data: badgeRows }] = await Promise.all([
+          supabase
+            .from('submissions')
+            .select('submitted_at')
+            .eq('student_id', user.id)
+            .eq('is_visible', true),
+          supabase
+            .from('badges')
+            .select('badge_type, count')
+            .eq('student_id', user.id),
+        ]);
 
-      const weeks = new Set();
-      const months = new Set();
-      for (const row of data ?? []) {
-        if (!row.submitted_at) continue;
-        weeks.add(weekKey(row.submitted_at));
-        months.add(monthKey(row.submitted_at));
+        if (cancelled) return;
+
+        // Calculate streaks based on unique submission periods[cite: 2]
+        const weeks = new Set();
+        const months = new Set();
+        (subs ?? []).forEach((s) => {
+          if (s.submitted_at) {
+            weeks.add(weekKey(s.submitted_at));
+            months.add(monthKey(s.submitted_at));
+          }
+        });
+
+        // Map permanent trophies from the backend[cite: 2, 7]
+        const byType = Object.fromEntries(
+          (badgeRows ?? []).map((r) => [r.badge_type, r.count ?? 0])
+        );
+
+        setCounts({
+          weekly_streak:  weeks.size,
+          monthly_streak: months.size,
+          weekly_top5:    byType.weekly_top5  ?? 0,
+          monthly_top5:   byType.monthly_top5 ?? 0,
+        });
+      } catch (error) {
+        console.error('Error loading badges:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setCounts({
-        weekly_streak:  weeks.size,
-        monthly_streak: months.size,
-        weekly_top5:    0, // TODO: rank history
-        monthly_top5:   0, // TODO: rank history
-      });
-      setLoading(false);
     })();
+
+    return () => { cancelled = true; };
   }, [user]);
 
   if (authLoading) return null;
@@ -61,6 +94,7 @@ export default function StudentBadges() {
   return (
     <div className="h-full flex flex-col bg-slate-50 pb-[70px] overflow-y-auto">
       <div className="pt-6 px-5 pb-2"><BackButton to="/student" /></div>
+      
       <div className="px-6 pt-1">
         <h1 className="text-[24px] leading-tight font-black text-slate-900">Badges 🎖️</h1>
         <p className="mt-1 text-[13px] font-semibold text-slate-500">Your earned achievements.</p>

@@ -10,7 +10,12 @@
       "Read(//c/Users/surya/AppData/Local/Temp/**)",
       "Bash(npm --version)",
       "Bash(npm run:*)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node -e \"import\\('./src/pages/StudentLeaderboard.jsx'\\).catch\\(e => { console.error\\('LB:', e.message\\); process.exit\\(1\\) }\\)\")",
+      "Bash(npx --yes esbuild --bundle=false --loader=jsx src/pages/StudentLeaderboard.jsx)",
+      "Bash(npx --yes esbuild --bundle=false --loader=jsx src/pages/StudentBadges.jsx)",
+      "Bash(npx --yes esbuild --loader:.jsx=jsx --bundle=false src/pages/StudentLeaderboard.jsx)",
+      "Bash(npx --yes esbuild --loader:.jsx=jsx --bundle=false src/pages/StudentBadges.jsx)"
     ]
   }
 }
