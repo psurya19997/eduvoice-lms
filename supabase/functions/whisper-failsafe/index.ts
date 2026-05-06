@@ -52,8 +52,22 @@ Deno.serve(async (req) => {
       });
 
       let result = await res.json();
+      
+      // --- ADDED SAFETY FOR DECODING ERRORS ---
       if (result.error) {
         console.error(`AI Error for ${sub.id}:`, result.error.message);
+        
+        // If the AI can't read the file, mark it as [Corrupt] and set retry_count to 1 to stop the loop
+        if (result.error.message.includes("could not be decoded") || result.error.message.includes("format is not supported")) {
+          await supabase
+            .from('submissions')
+            .update({ 
+              transcript: '[Corrupt/Unreadable Audio]', 
+              retry_count: 1,
+              audio_duration: 0 
+            })
+            .eq('id', sub.id);
+        }
         continue; 
       }
 
