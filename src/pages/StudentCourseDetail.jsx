@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import BackButton from '../components/BackButton.jsx';
+import StudentBottomNav from '../components/StudentBottomNav.jsx';
 import { supabase } from '../lib/supabase.js';
 import { useAuthProfile } from '../lib/useAuthProfile.js';
 
@@ -15,7 +16,7 @@ export default function StudentCourseDetail() {
     if (!user || !profile || !courseId) return;
     (async () => {
       setLoading(true);
-      
+
       const { data: c } = await supabase.from('courses').select('*').eq('id', courseId).single();
       setCourse(c);
 
@@ -31,10 +32,16 @@ export default function StudentCourseDetail() {
     })();
   }, [user, profile, courseId]);
 
-  if (loading || authLoading) return <div className="p-10 text-center font-bold">Loading Assignments...</div>;
+  if (loading || authLoading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-slate-50">
+        <p className="font-bold text-slate-500">Loading Assignments...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="h-full flex flex-col bg-slate-50 pb-[70px] overflow-y-auto">
       <header className="p-4 pt-6">
         <BackButton />
         <h1 className="text-[22px] font-black text-slate-900 mt-4">{course?.title}</h1>
@@ -48,8 +55,8 @@ export default function StudentCourseDetail() {
           </div>
         ) : (
           assignments.map((asm) => (
-            <Link 
-              key={asm.id} 
+            <Link
+              key={asm.id}
               to={`/student/assignments/${asm.id}`}
               className="block bg-white p-5 rounded-3xl ring-1 ring-slate-200 shadow-sm active:scale-[0.98] transition-all"
             >
@@ -66,6 +73,8 @@ export default function StudentCourseDetail() {
           ))
         )}
       </div>
+
+      <StudentBottomNav />
     </div>
   );
 }
