@@ -166,21 +166,65 @@ export default function StudentAssignmentDetail() {
               No instructions provided.
             </p>
           )}
+
           {assignment.instructionFileUrl && assignment.instructionType === 'image' && (
-            <img
-              src={assignment.instructionFileUrl}
-              alt="Instruction image"
-              className="mt-3 w-full rounded-xl ring-1 ring-slate-200 max-h-80 object-contain bg-slate-50"
-            />
+            <div className="mt-3">
+              <img
+                src={assignment.instructionFileUrl}
+                alt="Instruction image"
+                className="w-full rounded-xl ring-1 ring-slate-200 max-h-80 object-contain bg-slate-50"
+              />
+              <DownloadLink
+                url={assignment.instructionFileUrl}
+                fileName={inferFileName(assignment.instructionFileUrl, 'instruction.jpg')}
+                label="Download image"
+              />
+            </div>
           )}
+
           {assignment.instructionFileUrl && assignment.instructionType === 'audio' && (
-            <audio controls preload="metadata" src={assignment.instructionFileUrl} className="w-full mt-3" />
+            <div className="mt-3">
+              <audio controls preload="metadata" src={assignment.instructionFileUrl} className="w-full" />
+              <DownloadLink
+                url={assignment.instructionFileUrl}
+                fileName={inferFileName(assignment.instructionFileUrl, 'instruction.webm')}
+                label="Download audio"
+              />
+            </div>
           )}
-          {assignment.instructionFileUrl && !['image', 'audio'].includes(assignment.instructionType) && (
+
+          {assignment.instructionFileUrl && assignment.instructionType === 'pdf' && (
+            <div className="mt-3 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 ring-1 ring-rose-100 flex items-center justify-center text-xl shrink-0">
+                📄
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-extrabold text-slate-900 truncate">
+                  {inferFileName(assignment.instructionFileUrl, 'instruction.pdf')}
+                </div>
+                <div className="text-[11px] font-semibold text-slate-500">
+                  PDF document
+                </div>
+              </div>
+              <a
+                href={assignment.instructionFileUrl}
+                download={inferFileName(assignment.instructionFileUrl, 'instruction.pdf')}
+                target="_blank"
+                rel="noreferrer"
+                className="h-9 px-3 rounded-xl bg-indigo-600 text-white text-[12px] font-extrabold flex items-center gap-1.5 active:scale-95"
+              >
+                ⬇ Download
+              </a>
+            </div>
+          )}
+
+          {assignment.instructionFileUrl &&
+            !['image', 'audio', 'pdf'].includes(assignment.instructionType) && (
             <a
               href={assignment.instructionFileUrl}
               target="_blank"
               rel="noreferrer"
+              download
               className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-extrabold text-indigo-600 hover:text-indigo-700"
             >
               📎 View attachment
@@ -305,6 +349,31 @@ function SectionLabel({ children }) {
       {children}
     </div>
   );
+}
+
+function DownloadLink({ url, fileName, label }) {
+  return (
+    <a
+      href={url}
+      download={fileName}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-2 inline-flex items-center gap-1.5 text-[12.5px] font-extrabold text-indigo-600 hover:text-indigo-700"
+    >
+      ⬇ {label}
+    </a>
+  );
+}
+
+function inferFileName(url, fallback) {
+  if (!url) return fallback;
+  try {
+    const u = new URL(url);
+    const last = u.pathname.split('/').filter(Boolean).pop();
+    return last && last.includes('.') ? decodeURIComponent(last) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function TypeBadge({ type, small }) {

@@ -10,6 +10,7 @@ export default function StudentCourseDetail() {
   const { user, profile, loading: authLoading } = useAuthProfile('student');
   const [course, setCourse] = useState(null);
   const [assignments, setAssignments] = useState([]);
+  const [submittedIds, setSubmittedIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +28,23 @@ export default function StudentCourseDetail() {
         .eq('is_live', true)
         .eq('assignment_classes.class', profile.class);
 
-      setAssignments(a || []);
+      const list = a || [];
+      setAssignments(list);
+
+      // Pull this student's submissions for the listed assignments only —
+      // bandwidth-friendly and matches the pattern used in StudentDashboard.
+      if (list.length > 0) {
+        const ids = list.map((row) => row.id);
+        const { data: subs } = await supabase
+          .from('submissions')
+          .select('assignment_id')
+          .eq('student_id', user.id)
+          .in('assignment_id', ids);
+        setSubmittedIds(new Set((subs ?? []).map((r) => r.assignment_id)));
+      } else {
+        setSubmittedIds(new Set());
+      }
+
       setLoading(false);
     })();
   }, [user, profile, courseId]);
@@ -54,23 +71,36 @@ export default function StudentCourseDetail() {
             <p className="text-slate-400 font-bold">No assignments found for your class.</p>
           </div>
         ) : (
-          assignments.map((asm) => (
-            <Link
-              key={asm.id}
-              to={`/student/assignments/${asm.id}`}
-              className="block bg-white p-5 rounded-3xl ring-1 ring-slate-200 shadow-sm active:scale-[0.98] transition-all"
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-[16px] font-extrabold text-slate-900">{asm.title}</h3>
-                  <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                    Due: {new Date(asm.due_date).toLocaleDateString()}
-                  </p>
+          assignments.map((asm) => {
+            const submitted = submittedIds.has(asm.id);
+            return (
+              <Link
+                key={asm.id}
+                to={`/student/assignments/${asm.id}`}
+                className="block bg-white p-5 rounded-3xl ring-1 ring-slate-200 shadow-sm active:scale-[0.98] transition-all"
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-[16px] font-extrabold text-slate-900">{asm.title}</h3>
+                    <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                      Due: {new Date(asm.due_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div
+                    aria-label={submitted ? 'Submitted' : 'Open'}
+                    className={`
+                      w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0
+                      ${submitted
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-indigo-50 text-indigo-600'}
+                    `}
+                  >
+                    {submitted ? '✓' : '→'}
+                  </div>
                 </div>
-                <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 font-bold">→</div>
-              </div>
-            </Link>
-          ))
+              </Link>
+            );
+          })
         )}
       </div>
 

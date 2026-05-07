@@ -31,8 +31,8 @@ export default function TeacherAssignmentNew() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  // Optional instruction media (image or audio brief).
-  const [mediaKind, setMediaKind] = useState('none'); // 'none' | 'image' | 'audio'
+  // Optional instruction media (image, audio brief, or PDF).
+  const [mediaKind, setMediaKind] = useState('none'); // 'none' | 'image' | 'audio' | 'pdf'
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
   const [recording, setRecording] = useState(false);
@@ -42,6 +42,34 @@ export default function TeacherAssignmentNew() {
   const pickMedia = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+
+    // Defence-in-depth file-type check. We accept the file if EITHER its
+    // MIME type OR its extension matches the chosen media kind, because
+    // many Android browsers (especially older ones common in India) don't
+    // set a MIME type at all — `f.type` can be '' or 'application/octet-stream'
+    // even for a perfectly valid PDF/image/audio.
+    const ext = (f.name?.split('.').pop() || '').toLowerCase();
+    const mime = f.type || '';
+
+    let ok = true;
+    if (mediaKind === 'pdf') {
+      ok = mime === 'application/pdf' || ext === 'pdf';
+    } else if (mediaKind === 'image') {
+      ok = mime.startsWith('image/')
+        || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp'].includes(ext);
+    } else if (mediaKind === 'audio') {
+      ok = mime.startsWith('audio/')
+        || ['mp3', 'wav', 'm4a', 'webm', 'ogg', 'oga', 'aac', '3gp', 'amr'].includes(ext);
+    }
+
+    if (!ok) {
+      setError(`Please select a valid ${mediaKind.toUpperCase()} file.`);
+      // Reset so re-picking the same file still triggers onChange.
+      e.target.value = '';
+      return;
+    }
+
+    setError(null);
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
     setMediaFile(f);
     setMediaPreview(URL.createObjectURL(f));
@@ -136,12 +164,50 @@ export default function TeacherAssignmentNew() {
     let instruction_file_url = null;
     let instruction_type = 'text';
     if (mediaKind !== 'none' && mediaFile) {
-      const ext = mediaKind === 'audio'
-        ? (mediaFile.type?.includes('ogg') ? 'ogg' : mediaFile.type?.includes('mp4') ? 'm4a' : 'webm')
-        : (/\.([a-z0-9]+)$/i.exec(mediaFile.name || '')?.[1] || 'jpg').toLowerCase();
+      // Source of truth for extension: filename first (most reliable on
+      // Android), then MIME, then a sensible per-kind default. This avoids
+      // saving as `.jpg` when the OS reports an empty MIME for a PDF.
+      const nameExt = (mediaFile.name?.split('.').pop() || '').toLowerCase();
+      const mime = mediaFile.type || '';
+
+      let ext;
+      if (mediaKind === 'pdf') {
+        ext = 'pdf';
+      } else if (mediaKind === 'audio') {
+        if (nameExt && ['mp3', 'wav', 'm4a', 'webm', 'ogg', 'aac', '3gp', 'amr'].includes(nameExt)) {
+          ext = nameExt;
+        } else if (mime.includes('mpeg')) ext = 'mp3';
+        else if (mime.includes('ogg'))    ext = 'ogg';
+        else if (mime.includes('mp4'))    ext = 'm4a';
+        else if (mime.includes('wav'))    ext = 'wav';
+        else                              ext = 'webm'; // recorder default
+      } else { // image
+        if (nameExt && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp'].includes(nameExt)) {
+          ext = nameExt;
+        } else if (mime.includes('png'))  ext = 'png';
+        else if (mime.includes('webp'))   ext = 'webp';
+        else if (mime.includes('gif'))    ext = 'gif';
+        else if (mime.includes('heic'))   ext = 'heic';
+        else                              ext = 'jpg';
+      }
+
       const path = `${user.id}/${courseId}-${Date.now()}.${ext}`;
+
+      // Pick the content type. Trust the browser only if the MIME family
+      // matches the chosen kind — otherwise force a sane default. This stops
+      // Android's "application/octet-stream" from being saved on a PDF, which
+      // would make some browsers refuse to preview it later.
+      let contentType;
+      if (mediaKind === 'pdf') {
+        contentType = 'application/pdf';
+      } else if (mediaKind === 'audio') {
+        contentType = mime.startsWith('audio/') ? mime : 'audio/webm';
+      } else {
+        contentType = mime.startsWith('image/') ? mime : 'image/jpeg';
+      }
+
       const { error: upErr } = await supabase.storage.from('assignment-briefs')
-        .upload(path, mediaFile, { contentType: mediaFile.type || (mediaKind === 'audio' ? 'audio/webm' : 'image/jpeg'), upsert: false });
+        .upload(path, mediaFile, { contentType, upsert: false });
       if (upErr) { setSubmitting(false); setError(`Media upload failed: ${upErr.message}`); return; }
       const { data: pub } = supabase.storage.from('assignment-briefs').getPublicUrl(path);
       instruction_file_url = pub?.publicUrl ?? path;
@@ -192,6 +258,10 @@ export default function TeacherAssignmentNew() {
   if (authLoading || loadingCourse) return <FullScreenSpinner />;
   if (!course) return null;
 
+  // Friendly filename when one is staged (PDFs especially benefit from showing the name).
+  const stagedName = mediaFile?.name
+    || (mediaKind === 'audio' ? 'recording.webm' : null);
+
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-y-auto">
       <div className="pt-6 px-5 pb-2 flex items-center gap-3">
@@ -237,26 +307,67 @@ export default function TeacherAssignmentNew() {
 
         <div>
           <div className="text-[13px] font-bold text-slate-700 mb-1.5 pl-1">Instruction media (optional)</div>
-          <div className="grid grid-cols-3 gap-2">
-            {[['none','None','🚫'],['image','Image','🖼️'],['audio','Audio','🎤']].map(([k, label, emoji]) => (
-              <button key={k} type="button" onClick={() => { setMediaKind(k); setMediaFile(null); if (mediaPreview) { URL.revokeObjectURL(mediaPreview); setMediaPreview(null); } }}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              ['none','None','🚫'],
+              ['image','Image','🖼️'],
+              ['audio','Audio','🎤'],
+              ['pdf','PDF','📄'],
+            ].map(([k, label, emoji]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  setMediaKind(k);
+                  setMediaFile(null);
+                  if (mediaPreview) { URL.revokeObjectURL(mediaPreview); setMediaPreview(null); }
+                }}
                 className={`h-12 rounded-xl text-[12.5px] font-extrabold ring-1 flex items-center justify-center gap-1.5
-                  ${mediaKind === k ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white text-slate-700 ring-slate-200'}`}>
+                  ${mediaKind === k ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white text-slate-700 ring-slate-200'}`}
+              >
                 <span>{emoji}</span><span>{label}</span>
               </button>
             ))}
           </div>
+
           {mediaKind === 'image' && (
             <div className="mt-2">
-              {mediaPreview ? <img src={mediaPreview} alt="" className="w-full rounded-xl ring-1 ring-slate-200 max-h-56 object-contain bg-slate-50" />
-                : <label className="w-full h-24 rounded-xl bg-white ring-1 ring-dashed ring-slate-300 flex items-center justify-center text-[13px] font-extrabold text-slate-500 cursor-pointer">📷 Pick an image<input type="file" accept="image/*" onChange={pickMedia} className="hidden" /></label>}
+              {mediaPreview
+                ? <img src={mediaPreview} alt="" className="w-full rounded-xl ring-1 ring-slate-200 max-h-56 object-contain bg-slate-50" />
+                : <label className="w-full h-24 rounded-xl bg-white ring-1 ring-dashed ring-slate-300 flex items-center justify-center text-[13px] font-extrabold text-slate-500 cursor-pointer">📷 Pick an image<input type="file" accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.heic" onChange={pickMedia} className="hidden" /></label>}
             </div>
           )}
+
           {mediaKind === 'audio' && (
             <div className="mt-2 bg-white ring-1 ring-slate-200 rounded-xl p-3 flex flex-col items-center gap-2">
               {!recording && !mediaPreview && <button type="button" onClick={startRec} className="h-10 px-4 rounded-xl bg-rose-500 text-white text-[12.5px] font-extrabold">🎤 Record</button>}
               {recording && <button type="button" onClick={stopRec} className="h-10 px-4 rounded-xl bg-slate-900 text-white text-[12.5px] font-extrabold">■ Stop</button>}
               {!recording && mediaPreview && <><audio controls src={mediaPreview} className="w-full" /><button type="button" onClick={startRec} className="h-9 px-3 rounded-xl bg-slate-100 text-slate-700 text-[12px] font-extrabold">Re-record</button></>}
+            </div>
+          )}
+
+          {mediaKind === 'pdf' && (
+            <div className="mt-2">
+              {mediaFile ? (
+                <div className="w-full rounded-xl bg-white ring-1 ring-slate-200 p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 ring-1 ring-rose-100 flex items-center justify-center text-xl">📄</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-extrabold text-slate-900 truncate">{stagedName ?? 'document.pdf'}</div>
+                    <div className="text-[11px] font-semibold text-slate-500">
+                      {mediaFile.size ? `${(mediaFile.size / (1024 * 1024)).toFixed(2)} MB` : 'PDF selected'}
+                    </div>
+                  </div>
+                  <label className="h-9 px-3 rounded-xl bg-slate-100 text-slate-700 text-[12px] font-extrabold cursor-pointer flex items-center">
+                    Replace
+                    <input type="file" accept="application/pdf,.pdf" onChange={pickMedia} className="hidden" />
+                  </label>
+                </div>
+              ) : (
+                <label className="w-full h-24 rounded-xl bg-white ring-1 ring-dashed ring-slate-300 flex items-center justify-center text-[13px] font-extrabold text-slate-500 cursor-pointer">
+                  📄 Pick a PDF
+                  <input type="file" accept="application/pdf,.pdf" onChange={pickMedia} className="hidden" />
+                </label>
+              )}
             </div>
           )}
         </div>
