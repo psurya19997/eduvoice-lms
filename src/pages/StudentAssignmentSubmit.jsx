@@ -53,6 +53,11 @@ export default function StudentAssignmentSubmit() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Mic-help modal — opened only when getUserMedia fails. Never blocks the
+  // happy path, never asks the student to "test" anything proactively.
+  // shape: null | { kind: 'denied' | 'no-device' | 'webview' | 'insecure' }
+  const [micHelp, setMicHelp] = useState(null);
+
   useEffect(() => {
     if (!user || !profile || !assignmentId) return;
     (async () => {
@@ -150,8 +155,23 @@ export default function StudentAssignmentSubmit() {
   /* ---------- audio recording ---------- */
 
   const startRecording = async () => {
+    setError(null);
+
+    // ---- Pre-flight: catch failure modes that produce no Chrome prompt -----
+    // Insecure context (e.g., http:// link or some preview wrappers) — the
+    // mediaDevices API is not exposed at all.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setMicHelp({ kind: isInAppWebView() ? 'webview' : 'insecure' });
+      return;
+    }
+    // In-app browsers (Instagram, FB, etc.) routinely block getUserMedia and
+    // never surface a permission prompt — guide the student to a real browser.
+    if (isInAppWebView()) {
+      setMicHelp({ kind: 'webview' });
+      return;
+    }
+
     try {
-      setError(null);
       setAudioBlob(null);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       setAudioUrl(null);
@@ -201,7 +221,16 @@ export default function StudentAssignmentSubmit() {
         if (ms >= MAX_AUDIO_MS) stopRecording();
       }, 200);
     } catch (err) {
-      setError(err.message || 'Could not access the microphone.');
+      // Map mic-related errors to the help modal; leave anything else to the
+      // existing red error bar.
+      const name = err?.name || '';
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        setMicHelp({ kind: 'denied' });
+      } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+        setMicHelp({ kind: 'no-device' });
+      } else {
+        setError(err.message || 'Could not access the microphone.');
+      }
     }
   };
 
@@ -558,6 +587,18 @@ export default function StudentAssignmentSubmit() {
           onConfirm={doSubmit}
         />
       )}
+
+      {micHelp && (
+        <MicHelpModal
+          kind={micHelp.kind}
+          onClose={() => setMicHelp(null)}
+          onRetry={() => {
+            setMicHelp(null);
+            // Re-run the recording flow; if it still fails, the modal re-opens.
+            startRecording();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -644,6 +685,174 @@ function ConfirmModal({ submitting, onCancel, onConfirm }) {
       </div>
     </div>
   );
+}
+
+/* ---------- mic permission helpers + modal ---------- */
+
+function detectDevice() {
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/i.test(ua)) return 'ios';
+  if (/Android/i.test(ua))           return 'android';
+  return 'desktop';
+}
+
+function isInAppWebView() {
+  const ua = navigator.userAgent || '';
+  // Common in-app browsers that block getUserMedia and never surface a prompt.
+  return /(FBAN|FBAV|Instagram|Line|MicroMessenger|Snapchat|TikTok|; ?wv\)|WebView)/i.test(ua);
+}
+
+/**
+ * Help modal shown only when getUserMedia fails.
+ * - `denied`     → device-aware steps to unblock the mic (most common case).
+ * - `no-device`  → no mic detected.
+ * - `webview`    → page opened inside an in-app browser; redirect to a real one.
+ * - `insecure`   → page is on http:// or mediaDevices is missing.
+ *
+ * "Try again" re-runs the recording flow; if it still fails, the modal
+ * re-opens automatically.
+ */
+function MicHelpModal({ kind, onClose, onRetry }) {
+  const device = detectDevice();
+  const { title, lead, steps, note } = micHelpCopy(kind, device);
+
+  return (
+    <div className="absolute inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+      <div className="w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-w-sm mx-auto animate-in slide-in-from-bottom max-h-[92%] overflow-y-auto">
+        <div className="flex justify-center">
+          <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center text-3xl">
+            🎤
+          </div>
+        </div>
+        <h3 className="mt-3 text-[19px] font-black text-slate-900 text-center">
+          {title}
+        </h3>
+        {lead && (
+          <p className="mt-1.5 text-[13.5px] font-semibold text-slate-500 text-center">
+            {lead}
+          </p>
+        )}
+
+        <ol className="mt-4 flex flex-col gap-2.5">
+          {steps.map((s, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-indigo-600 text-white text-[12px] font-extrabold flex items-center justify-center">
+                {i + 1}
+              </span>
+              <span
+                className="text-[13.5px] font-medium text-slate-700 leading-snug pt-0.5"
+                dangerouslySetInnerHTML={{ __html: s }}
+              />
+            </li>
+          ))}
+        </ol>
+
+        {note && (
+          <p className="mt-3 text-[12px] font-semibold text-slate-500">
+            {note}
+          </p>
+        )}
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-12 rounded-2xl bg-slate-100 text-slate-700 text-[14px] font-extrabold hover:bg-slate-200"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="h-12 rounded-2xl bg-indigo-600 text-white text-[14px] font-extrabold hover:bg-indigo-700 active:scale-[0.98]"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function micHelpCopy(kind, device) {
+  if (kind === 'webview') {
+    return {
+      title: 'Open in your browser',
+      lead: 'This page is open inside another app, which blocks the microphone.',
+      steps: [
+        device === 'ios'
+          ? 'Tap the <b>•••</b> menu in this app and choose <b>Open in Safari</b>.'
+          : 'Tap the <b>⋮</b> menu in this app and choose <b>Open in Chrome</b>.',
+        'Sign in again on the new tab.',
+        'Come back to this assignment and tap <b>Record</b>.',
+      ],
+      note: 'In-app browsers (Instagram, WhatsApp, etc.) don\'t allow microphone access.',
+    };
+  }
+
+  if (kind === 'insecure') {
+    return {
+      title: 'Open over a secure connection',
+      lead: 'The microphone only works on a secure (https) page.',
+      steps: [
+        'Open <b>Chrome</b> (Android) or <b>Safari</b> (iOS).',
+        `Go to <b>${window.location.host}</b> directly.`,
+        'Sign in and try recording again.',
+      ],
+    };
+  }
+
+  if (kind === 'no-device') {
+    return {
+      title: 'No microphone detected',
+      lead: 'We can\'t find a microphone on this device.',
+      steps: [
+        'Make sure your device has a working microphone.',
+        'Close other apps that might be using the mic (calls, recorders).',
+        'Tap <b>Try again</b> below.',
+      ],
+    };
+  }
+
+  // kind === 'denied' — most common
+  if (device === 'android') {
+    return {
+      title: 'Allow microphone access',
+      lead: 'Chrome doesn\'t have permission to use the mic.',
+      steps: [
+        'Open phone <b>Settings</b>.',
+        'Tap <b>Apps</b> → <b>Chrome</b>.',
+        'Tap <b>Permissions</b> → <b>Microphone</b> → <b>Allow</b>.',
+        'Come back here and tap <b>Try again</b>.',
+      ],
+      note: 'If it still doesn\'t work, in Chrome\'s address bar tap the 🔒 icon → <b>Permissions</b> → <b>Microphone</b> → <b>Allow</b>.',
+    };
+  }
+
+  if (device === 'ios') {
+    return {
+      title: 'Allow microphone access',
+      lead: 'Safari needs permission to use the mic.',
+      steps: [
+        'Open <b>Settings</b> → <b>Safari</b> → <b>Microphone</b>.',
+        'Set it to <b>Ask</b> (or allow this site).',
+        'Reload this page and tap <b>Record</b>.',
+      ],
+      note: 'You can also tap <b>aA</b> in Safari\'s address bar → <b>Website Settings</b> → <b>Microphone</b> → <b>Allow</b>.',
+    };
+  }
+
+  // desktop
+  return {
+    title: 'Allow microphone access',
+    lead: 'Your browser blocked the microphone for this site.',
+    steps: [
+      'Click the 🔒 lock icon in the address bar.',
+      'Open <b>Site settings</b> (or <b>Permissions</b>).',
+      'Set <b>Microphone</b> to <b>Allow</b>.',
+      'Reload the page and tap <b>Record</b>.',
+    ],
+  };
 }
 
 function FullScreenSpinner() {
