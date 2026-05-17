@@ -31,10 +31,11 @@ export default function TeacherAssignmentNew() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  // Optional instruction media (image, audio brief, or PDF).
-  const [mediaKind, setMediaKind] = useState('none'); // 'none' | 'image' | 'audio' | 'pdf'
+  // Optional instruction media (image, audio brief, PDF, or link).
+  const [mediaKind, setMediaKind] = useState('none'); // 'none' | 'image' | 'audio' | 'pdf' | 'link'
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
+  const [linkUrl, setLinkUrl] = useState('');
   const [recording, setRecording] = useState(false);
   const mrRef = useRef(null);
   const streamRef = useRef(null);
@@ -149,8 +150,9 @@ export default function TeacherAssignmentNew() {
     if (classes.size === 0) return false;
     if (!dueDate) return false;
     if (!Number.isFinite(Number(teacherScore)) || Number(teacherScore) < 0) return false;
+    if (mediaKind === 'link' && !linkUrl.trim().startsWith('http')) return false;
     return !submitting;
-  }, [user, course, title, types, classes, dueDate, teacherScore, submitting]);
+  }, [user, course, title, types, classes, dueDate, teacherScore, submitting, mediaKind, linkUrl]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -163,7 +165,10 @@ export default function TeacherAssignmentNew() {
     // Upload instruction media (optional) before creating the assignment.
     let instruction_file_url = null;
     let instruction_type = 'text';
-    if (mediaKind !== 'none' && mediaFile) {
+    if (mediaKind === 'link') {
+      instruction_file_url = linkUrl.trim();
+      instruction_type = 'link';
+    } else if (mediaKind !== 'none' && mediaFile) {
       // Source of truth for extension: filename first (most reliable on
       // Android), then MIME, then a sensible per-kind default. This avoids
       // saving as `.jpg` when the OS reports an empty MIME for a PDF.
@@ -307,12 +312,13 @@ export default function TeacherAssignmentNew() {
 
         <div>
           <div className="text-[13px] font-bold text-slate-700 mb-1.5 pl-1">Instruction media (optional)</div>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-1.5">
             {[
               ['none','None','🚫'],
               ['image','Image','🖼️'],
               ['audio','Audio','🎤'],
               ['pdf','PDF','📄'],
+              ['link','Link','🔗'],
             ].map(([k, label, emoji]) => (
               <button
                 key={k}
@@ -320,9 +326,10 @@ export default function TeacherAssignmentNew() {
                 onClick={() => {
                   setMediaKind(k);
                   setMediaFile(null);
+                  setLinkUrl('');
                   if (mediaPreview) { URL.revokeObjectURL(mediaPreview); setMediaPreview(null); }
                 }}
-                className={`h-12 rounded-xl text-[12.5px] font-extrabold ring-1 flex items-center justify-center gap-1.5
+                className={`h-12 rounded-xl text-[11.5px] font-extrabold ring-1 flex items-center justify-center gap-1
                   ${mediaKind === k ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white text-slate-700 ring-slate-200'}`}
               >
                 <span>{emoji}</span><span>{label}</span>
@@ -368,6 +375,22 @@ export default function TeacherAssignmentNew() {
                   <input type="file" accept="application/pdf,.pdf" onChange={pickMedia} className="hidden" />
                 </label>
               )}
+            </div>
+          )}
+
+          {mediaKind === 'link' && (
+            <div className="mt-2">
+              <input
+                type="url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://..."
+                className={inputClass}
+              />
+              <p className="mt-1 text-[11px] font-semibold text-slate-400 pl-1">
+                YouTube links will show a player · all others open in a new tab
+              </p>
+              {linkUrl.startsWith('http') && <LinkPreview url={linkUrl} />}
             </div>
           )}
         </div>
@@ -570,5 +593,49 @@ function FullScreenSpinner() {
         <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>
     </div>
+  );
+}
+
+function extractYouTubeId(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0] || null;
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.startsWith('/embed/')) return u.pathname.split('/embed/')[1].split('?')[0] || null;
+      return u.searchParams.get('v');
+    }
+  } catch { /* invalid url */ }
+  return null;
+}
+
+function LinkPreview({ url }) {
+  const ytId = extractYouTubeId(url);
+  if (ytId) {
+    return (
+      <div className="mt-2">
+        <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500 mb-1.5 pl-1">
+          Student preview
+        </div>
+        <div className="rounded-xl overflow-hidden ring-1 ring-slate-200" style={{ aspectRatio: '16/9' }}>
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${ytId}`}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title="YouTube preview"
+          />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="mt-2 inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-slate-100 text-slate-700 text-[12.5px] font-extrabold active:scale-95 transition"
+    >
+      🔗 Test link →
+    </a>
   );
 }

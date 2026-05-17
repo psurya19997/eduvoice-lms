@@ -198,7 +198,7 @@ create table public.assignments (
   title                      text not null,
   instructions               text,
   instruction_file_url       text,
-  instruction_type           text check (instruction_type in ('text','image','audio')),
+  instruction_type           text check (instruction_type in ('text','image','audio','pdf','link')),
   allowed_submission_types   text[] not null check (
                                 array_length(allowed_submission_types, 1) >= 1
                                 and allowed_submission_types <@ array['text','image','audio']

@@ -218,8 +218,12 @@ export default function StudentAssignmentDetail() {
             </div>
           )}
 
+          {assignment.instructionFileUrl && assignment.instructionType === 'link' && (
+            <LinkInstruction url={assignment.instructionFileUrl} />
+          )}
+
           {assignment.instructionFileUrl &&
-            !['image', 'audio', 'pdf'].includes(assignment.instructionType) && (
+            !['image', 'audio', 'pdf', 'link'].includes(assignment.instructionType) && (
             <a
               href={assignment.instructionFileUrl}
               target="_blank"
@@ -433,5 +437,50 @@ function FullScreenSpinner() {
         <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>
     </div>
+  );
+}
+
+function extractYouTubeId(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0] || null;
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.startsWith('/embed/')) return u.pathname.split('/embed/')[1].split('?')[0] || null;
+      return u.searchParams.get('v');
+    }
+  } catch { /* invalid url */ }
+  return null;
+}
+
+function LinkInstruction({ url }) {
+  const ytId = extractYouTubeId(url);
+  if (ytId) {
+    return (
+      <div className="mt-3 rounded-xl overflow-hidden ring-1 ring-slate-200" style={{ aspectRatio: '16/9' }}>
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${ytId}`}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          title="Video"
+        />
+      </div>
+    );
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="mt-3 flex items-center gap-3 rounded-xl bg-indigo-50 ring-1 ring-indigo-100 p-3 active:scale-[0.98] transition"
+    >
+      <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-xl shrink-0">
+        🔗
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-extrabold text-indigo-700 truncate">{url}</div>
+        <div className="text-[11px] font-semibold text-indigo-500">Tap to open link</div>
+      </div>
+    </a>
   );
 }
