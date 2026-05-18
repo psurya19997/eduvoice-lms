@@ -52,6 +52,7 @@ export default function StudentAssignmentSubmit() {
   // Submit state
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null); // null | 0-100
 
   // Mic-help modal — opened only when getUserMedia fails. Never blocks the
   // happy path, never asks the student to "test" anything proactively.
@@ -127,6 +128,14 @@ export default function StudentAssignmentSubmit() {
     })();
   }, [user, profile, assignmentId, navigate]);
 
+  // Warn browser if user tries to close/navigate away during upload.
+  useEffect(() => {
+    if (!submitting) return;
+    const handler = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [submitting]);
+
   // Clean up any active recording on unmount / tab change.
   useEffect(() => {
     return () => stopRecordingCleanup();
@@ -181,7 +190,7 @@ export default function StudentAssignmentSubmit() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
 
-      const mr = new MediaRecorder(stream);
+      const mr = new MediaRecorder(stream, { audioBitsPerSecond: 32000 });
       const chunks = [];
       mr.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunks.push(e.data);
@@ -304,11 +313,13 @@ export default function StudentAssignmentSubmit() {
       if (tab === 'image') {
         const ext = fileExt(imageFile.name, 'jpg');
         const path = `${user.id}/${assignment.id}-${Date.now()}.${ext}`;
+        setUploadProgress(0);
         const { error: upErr } = await supabase.storage
           .from('submissions')
           .upload(path, imageFile, {
             contentType: imageFile.type || 'image/jpeg',
             upsert: false,
+            onUploadProgress: (p) => setUploadProgress(Math.round((p.loaded / p.total) * 100)),
           });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from('submissions').getPublicUrl(path);
@@ -320,11 +331,13 @@ export default function StudentAssignmentSubmit() {
                   : audioBlob.type.includes('ogg') ? 'ogg'
                   : 'webm';
         const path = `${user.id}/${assignment.id}-${Date.now()}.${ext}`;
+        setUploadProgress(0);
         const { error: upErr } = await supabase.storage
           .from('submissions')
           .upload(path, audioBlob, {
             contentType: audioBlob.type || 'audio/webm',
             upsert: false,
+            onUploadProgress: (p) => setUploadProgress(Math.round((p.loaded / p.total) * 100)),
           });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from('submissions').getPublicUrl(path);
@@ -583,6 +596,7 @@ export default function StudentAssignmentSubmit() {
       {confirmOpen && (
         <ConfirmModal
           submitting={submitting}
+          uploadProgress={uploadProgress}
           onCancel={() => setConfirmOpen(false)}
           onConfirm={doSubmit}
         />
@@ -637,7 +651,58 @@ function Field({ label, children }) {
   );
 }
 
-function ConfirmModal({ submitting, onCancel, onConfirm }) {
+function ConfirmModal({ submitting, uploadProgress, onCancel, onConfirm }) {
+  if (submitting) {
+    const headingText = uploadProgress === null ? 'Saving…'
+      : uploadProgress < 100 ? 'Uploading…'
+      : 'Almost done…';
+
+    return (
+      <div className="absolute inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+        <div className="w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-w-sm mx-auto">
+          <div className="flex justify-center">
+            <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-3xl">
+              ⬆️
+            </div>
+          </div>
+          <h3 className="mt-3 text-[19px] font-black text-slate-900 text-center">
+            {headingText}
+          </h3>
+
+          {uploadProgress !== null ? (
+            <>
+              <div className="mt-4 w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
+                <div
+                  className="h-full bg-indigo-600 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <div className="mt-2 text-center text-[17px] font-black text-slate-800 tabular-nums">
+                {uploadProgress}%
+              </div>
+            </>
+          ) : (
+            <div className="mt-4 flex justify-center">
+              <svg className="animate-spin text-indigo-600" width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            </div>
+          )}
+
+          <div className="mt-5 rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-center">
+            <div className="text-[15px] font-extrabold text-amber-800">
+              📱 Keep this page open and screen on
+            </div>
+            <div className="mt-0.5 text-[12px] font-semibold text-amber-700">
+              Your assignment is being uploaded. Do not close the app.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="absolute inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm">
       <div className="w-full bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-w-sm mx-auto animate-in slide-in-from-bottom">
@@ -656,7 +721,6 @@ function ConfirmModal({ submitting, onCancel, onConfirm }) {
           <button
             type="button"
             onClick={onCancel}
-            disabled={submitting}
             className="h-12 rounded-2xl bg-slate-100 text-slate-700 text-[14px] font-extrabold hover:bg-slate-200"
           >
             Review
@@ -664,22 +728,9 @@ function ConfirmModal({ submitting, onCancel, onConfirm }) {
           <button
             type="button"
             onClick={onConfirm}
-            disabled={submitting}
-            className={`
-              h-12 rounded-2xl text-white text-[14px] font-extrabold
-              flex items-center justify-center gap-2
-              ${submitting ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98]'}
-            `}
+            className="h-12 rounded-2xl bg-indigo-600 text-white text-[14px] font-extrabold hover:bg-indigo-700 active:scale-[0.98]"
           >
-            {submitting ? (
-              <>
-                <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-                  <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-                Submitting…
-              </>
-            ) : 'Yes, submit'}
+            Yes, submit
           </button>
         </div>
       </div>
