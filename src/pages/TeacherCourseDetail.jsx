@@ -219,45 +219,46 @@ function AssignmentCard({ assignment, toggling, onToggle }) {
   const overdue = due.getTime() < Date.now();
 
   return (
-    <div className="relative bg-white rounded-3xl ring-1 ring-slate-200 p-4 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="text-[15px] font-extrabold text-slate-900 truncate">
-              {assignment.title}
-            </div>
-            {assignment.isLive ? (
-              <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
-                LIVE
-              </span>
-            ) : (
-              <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">
-                UNLIVE
-              </span>
-            )}
+    <div className="bg-white rounded-3xl ring-1 ring-slate-200 shadow-sm overflow-hidden">
+      {/* Tappable body → assignment detail */}
+      <Link to={`/teacher/assignments/${assignment.id}`} className="block p-4">
+        <div className="flex items-start gap-2 flex-wrap">
+          <div className="text-[15px] font-extrabold text-slate-900 leading-snug flex-1 min-w-0 truncate">
+            {assignment.title}
           </div>
-          <div className="mt-1.5 flex items-center flex-wrap gap-x-3 gap-y-1">
-            <div className={`text-[11.5px] font-bold ${overdue ? 'text-rose-600' : 'text-slate-500'}`}>
-              ⏰ Due {dueLabel} · {timeLabel}
-            </div>
-            <div className="text-[11.5px] font-bold text-slate-500">
-              📥 {assignment.submissionCount} submission{assignment.submissionCount === 1 ? '' : 's'}
-            </div>
+          {assignment.isLive ? (
+            <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5 shrink-0">
+              LIVE
+            </span>
+          ) : (
+            <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5 shrink-0">
+              UNLIVE
+            </span>
+          )}
+        </div>
+        <div className="mt-1.5 flex items-center flex-wrap gap-x-3 gap-y-1">
+          <div className={`text-[11.5px] font-bold ${overdue ? 'text-rose-600' : 'text-slate-500'}`}>
+            ⏰ Due {dueLabel} · {timeLabel}
+          </div>
+          <div className="text-[11.5px] font-bold text-slate-500">
+            📥 {assignment.submissionCount} submission{assignment.submissionCount === 1 ? '' : 's'}
           </div>
         </div>
+      </Link>
 
-        <Toggle on={assignment.isLive} disabled={toggling} onChange={onToggle} />
-      </div>
-
-      <div className="mt-3 pt-3 border-t border-slate-100">
+      {/* Footer: live toggle + quick submissions link */}
+      <div className="px-4 pb-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[11.5px] font-semibold text-slate-500">
+            {assignment.isLive ? 'Live' : 'Unlive'}
+          </span>
+          <Toggle on={assignment.isLive} disabled={toggling} onChange={onToggle} />
+        </div>
         <Link
           to={`/teacher/assignments/${assignment.id}/submissions`}
-          className="
-            inline-flex items-center gap-1.5 text-[12.5px] font-extrabold
-            text-indigo-600 hover:text-indigo-700
-          "
+          className="inline-flex items-center gap-1.5 text-[12.5px] font-extrabold text-indigo-600"
         >
-          👀 View submissions
+          👀 Submissions
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
             <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

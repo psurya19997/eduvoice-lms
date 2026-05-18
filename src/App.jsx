@@ -12,6 +12,7 @@ import TeacherDashboard from './pages/TeacherDashboard.jsx';
 import TeacherCourseNew from './pages/TeacherCourseNew.jsx';
 import TeacherCourseDetail from './pages/TeacherCourseDetail.jsx';
 import TeacherAssignmentNew from './pages/TeacherAssignmentNew.jsx';
+import TeacherAssignmentDetail from './pages/TeacherAssignmentDetail.jsx';
 import TeacherAssignmentSubmissions from './pages/TeacherAssignmentSubmissions.jsx';
 import StudentDashboard from './pages/StudentDashboard.jsx';
 import StudentCourseDetail from './pages/StudentCourseDetail.jsx';
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/teacher/courses/new" element={<TeacherCourseNew />} />
         <Route path="/teacher/courses/:id" element={<TeacherCourseDetail />} />
         <Route path="/teacher/assignments/new" element={<TeacherAssignmentNew />} />
+        <Route path="/teacher/assignments/:id" element={<TeacherAssignmentDetail />} />
         <Route path="/teacher/assignments/:id/submissions" element={<TeacherAssignmentSubmissions />} />
         <Route path="/student" element={<StudentDashboard />} />
 	<Route path="/student/courses/:id" element={<StudentCourseDetail />} />
