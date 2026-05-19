@@ -23,6 +23,9 @@ import PhoneFrame from './components/PhoneFrame.jsx';
 import StudentBadges from './pages/StudentBadges.jsx';
 import StudentProfile from './pages/StudentProfile.jsx';
 import TeacherProfile from './pages/TeacherProfile.jsx';
+import SchoolCourses from './pages/SchoolCourses.jsx';
+import SchoolCourseDetail from './pages/SchoolCourseDetail.jsx';
+import SchoolAssignmentSubmissions from './pages/SchoolAssignmentSubmissions.jsx';
 import PrincipalDashboard from './pages/PrincipalDashboard.jsx';
 import PrincipalTeachers from './pages/PrincipalTeachers.jsx';
 import PrincipalCourses from './pages/PrincipalCourses.jsx';
@@ -61,6 +64,9 @@ export default function App() {
         <Route path="/teacher/assignments/new" element={<TeacherAssignmentNew />} />
         <Route path="/teacher/assignments/:id" element={<TeacherAssignmentDetail />} />
         <Route path="/teacher/assignments/:id/submissions" element={<TeacherAssignmentSubmissions />} />
+        <Route path="/teacher/school" element={<SchoolCourses />} />
+        <Route path="/teacher/school/courses/:id" element={<SchoolCourseDetail />} />
+        <Route path="/teacher/school/assignments/:id/submissions" element={<SchoolAssignmentSubmissions />} />
         <Route path="/student" element={<StudentDashboard />} />
 	<Route path="/student/courses/:id" element={<StudentCourseDetail />} />
         <Route path="/student/assignments/:id" element={<StudentAssignmentDetail />} />

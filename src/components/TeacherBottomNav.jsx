@@ -16,6 +16,7 @@ export default function TeacherBottomNav() {
       "
     >
       <Tab to="/teacher" label="Dashboard" icon={HomeIcon} />
+      <Tab to="/teacher/school" label="School" icon={SchoolIcon} />
       <Tab to="/teacher/profile" label="Profile" icon={UserIcon} />
     </nav>
   );
@@ -64,6 +65,26 @@ function BookIcon({ active }) {
         fillOpacity={active ? 0.15 : 0}
       />
       <path d="M4 19a2 2 0 0 0 2 2h12" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+function SchoolIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M3 21V10l9-7 9 7v11"
+        stroke="currentColor" strokeWidth="2" strokeLinejoin="round"
+        fill={active ? 'currentColor' : 'none'}
+        fillOpacity={active ? 0.12 : 0}
+      />
+      <rect
+        x="9" y="13" width="6" height="8"
+        stroke="currentColor" strokeWidth="2" strokeLinejoin="round"
+        fill={active ? 'currentColor' : 'none'}
+        fillOpacity={active ? 0.2 : 0}
+      />
+      <rect x="5" y="11" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="16" y="11" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }
