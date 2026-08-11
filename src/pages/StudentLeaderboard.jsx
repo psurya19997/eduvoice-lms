@@ -53,7 +53,7 @@ export default function StudentLeaderboard() {
         // 2. Fetch breakdown details for the current user from the scores table[cite: 10]
         const { data: myScore, error: scoreErr } = await supabase
           .from('scores')
-          .select('teacher_score_total, total_words, unique_words, total_score')
+          .select('teacher_score_total, total_words, unique_words, game_points_total, total_score')
           .eq('student_id', user.id)
           .eq('school_id', profile.school_id)
           .eq('period_type', tab)
@@ -175,7 +175,7 @@ function YourRankCard({ me, rank, total }) {
     return (
       <div className="mt-1.5 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white p-5 shadow-lg shadow-indigo-600/20">
         <div className="text-[12px] font-extrabold uppercase tracking-wide opacity-80">Not on the board yet</div>
-        <div className="mt-1 text-[20px] font-black">Submit an assignment to get started 🚀</div>
+        <div className="mt-1 text-[20px] font-black">Play a game or submit an assignment to get on the board 🚀</div>
       </div>
     );
   }
@@ -207,6 +207,7 @@ function BreakdownCard({ me }) {
       <BreakdownRow emoji="⭐" label="Teacher points" value={me.teacher_score_total} sub={null} />
       <BreakdownRow emoji="📝" label="Word points" value={wordPts} sub={`${me.total_words} words × 1`} />
       <BreakdownRow emoji="💎" label="Unique word points" value={uniquePts} sub={`${me.unique_words} unique × 3`} />
+      <BreakdownRow emoji="🎮" label="Game points" value={me.game_points_total ?? 0} sub="from Word Family &amp; other games" />
       <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
         <span className="text-[13.5px] font-extrabold text-slate-900">Total</span>
         <span className="text-[18px] font-black text-indigo-600">{me.total_score}</span>

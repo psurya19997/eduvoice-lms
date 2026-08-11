@@ -1,0 +1,11 @@
+[
+  { "key": "word_family",      "display_name": "Word Family",      "icon": "🧩",  "sort_order": 1, "is_active": true  },
+  { "key": "say_it_right",     "display_name": "Say It Right",     "icon": "🗣️", "sort_order": 2, "is_active": false },
+  { "key": "read_aloud",       "display_name": "Read Aloud",       "icon": "📖",  "sort_order": 3, "is_active": false },
+  { "key": "sentence_builder", "display_name": "Sentence Builder", "icon": "🧱",  "sort_order": 4, "is_active": false },
+  { "key": "story_listen",     "display_name": "Story Listen",     "icon": "🎧",  "sort_order": 5, "is_active": false },
+  { "key": "reading_quest",    "display_name": "Reading Quest",    "icon": "📚",  "sort_order": 6, "is_active": false },
+  { "key": "speed_read",       "display_name": "Speed Read",       "icon": "⚡",  "sort_order": 7, "is_active": false },
+  { "key": "talk_back",        "display_name": "Talk Back",        "icon": "💬",  "sort_order": 8, "is_active": false },
+  { "key": "story_teller",     "display_name": "Story Teller",     "icon": "📖",  "sort_order": 9, "is_active": true  }
+]

@@ -1,0 +1,102 @@
+[
+  {
+    "step": 6,
+    "category_name": "Make chai — pick the 3 ingredients",
+    "number_of_words": 6,
+    "words": [
+      { "word": "tea leaves", "is_target": true,  "l1_hindi": "चायपत्ती", "emoji": "🍃", "image_url": null },
+      { "word": "milk",       "is_target": true,  "l1_hindi": "दूध",       "emoji": "🥛", "image_url": null },
+      { "word": "sugar",      "is_target": true,  "l1_hindi": "चीनी",     "emoji": "🍬", "image_url": null },
+      { "word": "mango",      "is_target": false, "l1_hindi": "आम",       "emoji": "🥭", "image_url": null },
+      { "word": "salt",       "is_target": false, "l1_hindi": "नमक",      "emoji": "🧂", "image_url": null },
+      { "word": "pencil",     "is_target": false, "l1_hindi": "पेंसिल",   "emoji": "✏️", "image_url": null }
+    ],
+    "hint": "Leaves + something white + something sweet.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 6,
+    "category_name": "Make dosa — pick the 3 ingredients",
+    "number_of_words": 6,
+    "words": [
+      { "word": "rice",  "is_target": true,  "l1_hindi": "चावल", "emoji": "🍚", "image_url": null },
+      { "word": "dal",   "is_target": true,  "l1_hindi": "दाल",  "emoji": "🫘", "image_url": null },
+      { "word": "oil",   "is_target": true,  "l1_hindi": "तेल",  "emoji": "🫒", "image_url": null },
+      { "word": "pen",   "is_target": false, "l1_hindi": "कलम",  "emoji": "🖊️", "image_url": null },
+      { "word": "ball",  "is_target": false, "l1_hindi": "गेंद", "emoji": "⚽", "image_url": null },
+      { "word": "sock",  "is_target": false, "l1_hindi": "मोज़ा","emoji": "🧦", "image_url": null }
+    ],
+    "hint": "Grains + a lentil + something oily.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 6,
+    "category_name": "Make lassi — pick the 3 ingredients",
+    "number_of_words": 6,
+    "words": [
+      { "word": "curd",  "is_target": true,  "l1_hindi": "दही",  "emoji": "🥛", "image_url": null },
+      { "word": "sugar", "is_target": true,  "l1_hindi": "चीनी", "emoji": "🍬", "image_url": null },
+      { "word": "water", "is_target": true,  "l1_hindi": "पानी", "emoji": "💧", "image_url": null },
+      { "word": "book",  "is_target": false, "l1_hindi": "किताब","emoji": "📖", "image_url": null },
+      { "word": "drum",  "is_target": false, "l1_hindi": "ढोल",  "emoji": "🥁", "image_url": null },
+      { "word": "chair", "is_target": false, "l1_hindi": "कुर्सी","emoji": "🪑", "image_url": null }
+    ],
+    "hint": "Something thick + something sweet + a liquid.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 6,
+    "category_name": "Make a sandwich — pick the 3 ingredients",
+    "number_of_words": 6,
+    "words": [
+      { "word": "bread",  "is_target": true,  "l1_hindi": "ब्रेड", "emoji": "🍞", "image_url": null },
+      { "word": "butter", "is_target": true,  "l1_hindi": "मक्खन","emoji": "🧈", "image_url": null },
+      { "word": "tomato", "is_target": true,  "l1_hindi": "टमाटर","emoji": "🍅", "image_url": null },
+      { "word": "cat",    "is_target": false, "l1_hindi": "बिल्ली","emoji": "🐈", "image_url": null },
+      { "word": "kite",   "is_target": false, "l1_hindi": "पतंग", "emoji": "🪁", "image_url": null },
+      { "word": "cow",    "is_target": false, "l1_hindi": "गाय",  "emoji": "🐄", "image_url": null }
+    ],
+    "hint": "Slices + something to spread + a red vegetable.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 6,
+    "category_name": "Make a fruit salad — pick the 3 fruits",
+    "number_of_words": 6,
+    "words": [
+      { "word": "apple",  "is_target": true,  "l1_hindi": "सेब",    "emoji": "🍎", "image_url": null },
+      { "word": "banana", "is_target": true,  "l1_hindi": "केला",   "emoji": "🍌", "image_url": null },
+      { "word": "grapes", "is_target": true,  "l1_hindi": "अंगूर",  "emoji": "🍇", "image_url": null },
+      { "word": "pencil", "is_target": false, "l1_hindi": "पेंसिल", "emoji": "✏️", "image_url": null },
+      { "word": "tree",   "is_target": false, "l1_hindi": "पेड़",   "emoji": "🌳", "image_url": null },
+      { "word": "ball",   "is_target": false, "l1_hindi": "गेंद",   "emoji": "⚽", "image_url": null }
+    ],
+    "hint": "Only fruits belong here.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

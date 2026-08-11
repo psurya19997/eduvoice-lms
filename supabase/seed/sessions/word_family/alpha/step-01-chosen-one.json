@@ -1,0 +1,97 @@
+[
+  {
+    "step": 1,
+    "category_name": "Pick the fruit",
+    "number_of_words": 5,
+    "words": [
+      { "word": "apple", "is_target": true,  "l1_hindi": "सेब",     "emoji": "🍎", "image_url": null },
+      { "word": "book",  "is_target": false, "l1_hindi": "किताब",   "emoji": "📖", "image_url": null },
+      { "word": "chair", "is_target": false, "l1_hindi": "कुर्सी",  "emoji": "🪑", "image_url": null },
+      { "word": "kite",  "is_target": false, "l1_hindi": "पतंग",    "emoji": "🪁", "image_url": null },
+      { "word": "ball",  "is_target": false, "l1_hindi": "गेंद",    "emoji": "⚽", "image_url": null }
+    ],
+    "hint": "Fruits are sweet and juicy.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 1,
+    "category_name": "Pick the animal",
+    "number_of_words": 5,
+    "words": [
+      { "word": "elephant", "is_target": true,  "l1_hindi": "हाथी",    "emoji": "🐘", "image_url": null },
+      { "word": "bus",      "is_target": false, "l1_hindi": "बस",      "emoji": "🚌", "image_url": null },
+      { "word": "banana",   "is_target": false, "l1_hindi": "केला",    "emoji": "🍌", "image_url": null },
+      { "word": "balloon",  "is_target": false, "l1_hindi": "गुब्बारा", "emoji": "🎈", "image_url": null },
+      { "word": "tree",     "is_target": false, "l1_hindi": "पेड़",     "emoji": "🌳", "image_url": null }
+    ],
+    "hint": "Animals can move and eat.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 1,
+    "category_name": "Pick the vehicle",
+    "number_of_words": 5,
+    "words": [
+      { "word": "rickshaw", "is_target": true,  "l1_hindi": "रिक्शा",  "emoji": "🛺", "image_url": null },
+      { "word": "mango",    "is_target": false, "l1_hindi": "आम",      "emoji": "🥭", "image_url": null },
+      { "word": "dog",      "is_target": false, "l1_hindi": "कुत्ता",  "emoji": "🐕", "image_url": null },
+      { "word": "yo-yo",    "is_target": false, "l1_hindi": "यो-यो",   "emoji": "🪀", "image_url": null },
+      { "word": "flower",   "is_target": false, "l1_hindi": "फूल",     "emoji": "🌸", "image_url": null }
+    ],
+    "hint": "Vehicles help us travel.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 1,
+    "category_name": "Pick the vegetable",
+    "number_of_words": 5,
+    "words": [
+      { "word": "tomato",     "is_target": true,  "l1_hindi": "टमाटर",       "emoji": "🍅", "image_url": null },
+      { "word": "pencil",     "is_target": false, "l1_hindi": "पेंसिल",       "emoji": "✏️", "image_url": null },
+      { "word": "cat",        "is_target": false, "l1_hindi": "बिल्ली",       "emoji": "🐈", "image_url": null },
+      { "word": "drum",       "is_target": false, "l1_hindi": "ढोल",         "emoji": "🥁", "image_url": null },
+      { "word": "basketball", "is_target": false, "l1_hindi": "बास्केटबॉल",  "emoji": "🏀", "image_url": null }
+    ],
+    "hint": "Vegetables grow in gardens — we cook them.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 1,
+    "category_name": "Pick the toy",
+    "number_of_words": 5,
+    "words": [
+      { "word": "kite",  "is_target": true,  "l1_hindi": "पतंग",     "emoji": "🪁", "image_url": null },
+      { "word": "rice",  "is_target": false, "l1_hindi": "चावल",     "emoji": "🍚", "image_url": null },
+      { "word": "cow",   "is_target": false, "l1_hindi": "गाय",      "emoji": "🐄", "image_url": null },
+      { "word": "train", "is_target": false, "l1_hindi": "रेलगाड़ी", "emoji": "🚂", "image_url": null },
+      { "word": "lemon", "is_target": false, "l1_hindi": "नींबू",    "emoji": "🍋", "image_url": null }
+    ],
+    "hint": "Toys are what kids play with.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

@@ -1,0 +1,102 @@
+[
+  {
+    "step": 5,
+    "category_name": "Pick the 2 opposites (temperature)",
+    "number_of_words": 6,
+    "words": [
+      { "word": "hot",   "is_target": true,  "l1_hindi": "गरम",   "emoji": "🔥", "image_url": null },
+      { "word": "cold",  "is_target": true,  "l1_hindi": "ठंडा",  "emoji": "❄️", "image_url": null },
+      { "word": "apple", "is_target": false, "l1_hindi": "सेब",   "emoji": "🍎", "image_url": null },
+      { "word": "tree",  "is_target": false, "l1_hindi": "पेड़",  "emoji": "🌳", "image_url": null },
+      { "word": "cat",   "is_target": false, "l1_hindi": "बिल्ली","emoji": "🐈", "image_url": null },
+      { "word": "ball",  "is_target": false, "l1_hindi": "गेंद",  "emoji": "⚽", "image_url": null }
+    ],
+    "hint": "Like fire and ice.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 5,
+    "category_name": "Pick the 2 opposites (size)",
+    "number_of_words": 6,
+    "words": [
+      { "word": "big",   "is_target": true,  "l1_hindi": "बड़ा",  "emoji": "🐘", "image_url": null },
+      { "word": "small", "is_target": true,  "l1_hindi": "छोटा",  "emoji": "🐜", "image_url": null },
+      { "word": "red",   "is_target": false, "l1_hindi": "लाल",   "emoji": "🔴", "image_url": null },
+      { "word": "dog",   "is_target": false, "l1_hindi": "कुत्ता","emoji": "🐕", "image_url": null },
+      { "word": "kite",  "is_target": false, "l1_hindi": "पतंग",  "emoji": "🪁", "image_url": null },
+      { "word": "book",  "is_target": false, "l1_hindi": "किताब", "emoji": "📖", "image_url": null }
+    ],
+    "hint": "Like an elephant and an ant.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 5,
+    "category_name": "Pick the 2 opposites (time)",
+    "number_of_words": 6,
+    "words": [
+      { "word": "day",    "is_target": true,  "l1_hindi": "दिन",    "emoji": "☀️", "image_url": null },
+      { "word": "night",  "is_target": true,  "l1_hindi": "रात",    "emoji": "🌙", "image_url": null },
+      { "word": "chair",  "is_target": false, "l1_hindi": "कुर्सी", "emoji": "🪑", "image_url": null },
+      { "word": "apple",  "is_target": false, "l1_hindi": "सेब",    "emoji": "🍎", "image_url": null },
+      { "word": "cow",    "is_target": false, "l1_hindi": "गाय",    "emoji": "🐄", "image_url": null },
+      { "word": "flower", "is_target": false, "l1_hindi": "फूल",    "emoji": "🌸", "image_url": null }
+    ],
+    "hint": "One has sun, the other has moon.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 5,
+    "category_name": "Pick the 2 opposites (speed)",
+    "number_of_words": 6,
+    "words": [
+      { "word": "fast",  "is_target": true,  "l1_hindi": "तेज़",   "emoji": "🐇", "image_url": null },
+      { "word": "slow",  "is_target": true,  "l1_hindi": "धीमा",  "emoji": "🐢", "image_url": null },
+      { "word": "mango", "is_target": false, "l1_hindi": "आम",    "emoji": "🥭", "image_url": null },
+      { "word": "house", "is_target": false, "l1_hindi": "घर",    "emoji": "🏠", "image_url": null },
+      { "word": "book",  "is_target": false, "l1_hindi": "किताब", "emoji": "📖", "image_url": null },
+      { "word": "drum",  "is_target": false, "l1_hindi": "ढोल",   "emoji": "🥁", "image_url": null }
+    ],
+    "hint": "One is like a rabbit, the other like a tortoise.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 5,
+    "category_name": "Pick the 2 opposites (direction)",
+    "number_of_words": 6,
+    "words": [
+      { "word": "up",    "is_target": true,  "l1_hindi": "ऊपर",  "emoji": "⬆️", "image_url": null },
+      { "word": "down",  "is_target": true,  "l1_hindi": "नीचे", "emoji": "⬇️", "image_url": null },
+      { "word": "apple", "is_target": false, "l1_hindi": "सेब",  "emoji": "🍎", "image_url": null },
+      { "word": "cow",   "is_target": false, "l1_hindi": "गाय",  "emoji": "🐄", "image_url": null },
+      { "word": "book",  "is_target": false, "l1_hindi": "किताब","emoji": "📖", "image_url": null },
+      { "word": "ball",  "is_target": false, "l1_hindi": "गेंद", "emoji": "⚽", "image_url": null }
+    ],
+    "hint": "One goes to the sky, the other to the floor.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

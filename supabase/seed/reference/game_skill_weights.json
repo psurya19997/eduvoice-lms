@@ -1,0 +1,27 @@
+[
+  { "game": "word_family", "level": "alpha", "skill": "vocabulary", "weight": 0.70 },
+  { "game": "word_family", "level": "alpha", "skill": "reading",    "weight": 0.30 },
+
+  { "game": "word_family", "level": "beta",  "skill": "vocabulary", "weight": 0.65 },
+  { "game": "word_family", "level": "beta",  "skill": "reading",    "weight": 0.25 },
+  { "game": "word_family", "level": "beta",  "skill": "grammar",    "weight": 0.10 },
+
+  { "game": "word_family", "level": "gamma", "skill": "vocabulary", "weight": 0.50 },
+  { "game": "word_family", "level": "gamma", "skill": "reading",    "weight": 0.40 },
+  { "game": "word_family", "level": "gamma", "skill": "grammar",    "weight": 0.10 },
+
+  { "game": "story_teller", "level": "alpha", "skill": "listening",  "weight": 0.40 },
+  { "game": "story_teller", "level": "alpha", "skill": "speaking",   "weight": 0.25 },
+  { "game": "story_teller", "level": "alpha", "skill": "vocabulary", "weight": 0.20 },
+  { "game": "story_teller", "level": "alpha", "skill": "reading",    "weight": 0.15 },
+
+  { "game": "story_teller", "level": "beta",  "skill": "listening",  "weight": 0.40 },
+  { "game": "story_teller", "level": "beta",  "skill": "speaking",   "weight": 0.25 },
+  { "game": "story_teller", "level": "beta",  "skill": "vocabulary", "weight": 0.20 },
+  { "game": "story_teller", "level": "beta",  "skill": "reading",    "weight": 0.15 },
+
+  { "game": "story_teller", "level": "gamma", "skill": "listening",  "weight": 0.40 },
+  { "game": "story_teller", "level": "gamma", "skill": "speaking",   "weight": 0.25 },
+  { "game": "story_teller", "level": "gamma", "skill": "vocabulary", "weight": 0.20 },
+  { "game": "story_teller", "level": "gamma", "skill": "reading",    "weight": 0.15 }
+]

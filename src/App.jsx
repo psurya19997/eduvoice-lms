@@ -32,6 +32,16 @@ import PrincipalCourses from './pages/PrincipalCourses.jsx';
 import PrincipalRequests from './pages/PrincipalRequests.jsx';
 import PrincipalSettings from './pages/PrincipalSettings.jsx';
 import PrincipalStudents from './pages/PrincipalStudents.jsx';
+import GamesHub from './pages/GamesHub.jsx';
+import WFHub from './pages/WFHub.jsx';
+import WFSession from './pages/WFSession.jsx';
+import SBHub from './pages/SBHub.jsx';
+import SBSession from './pages/SBSession.jsx';
+import STHub from './pages/STHub.jsx';
+import STSession from './pages/STSession.jsx';
+import STComplete from './pages/STComplete.jsx';
+import STPractice from './pages/STPractice.jsx';
+import STBonus from './pages/STBonus.jsx';
 
 // Placeholder — each real screen will replace this as we build.
 function Placeholder({ title }) {
@@ -72,6 +82,16 @@ export default function App() {
         <Route path="/student/assignments/:id" element={<StudentAssignmentDetail />} />
         <Route path="/student/assignments/:id/submit" element={<StudentAssignmentSubmit />} />
         <Route path="/student/leaderboard" element={<StudentLeaderboard />} />
+	<Route path="/student/games" element={<GamesHub />} />
+	<Route path="/student/games/word-family" element={<WFHub />} />
+	<Route path="/student/games/word-family/play" element={<WFSession />} />
+	<Route path="/student/games/sentence-builder" element={<SBHub />} />
+	<Route path="/student/games/sentence-builder/play" element={<SBSession />} />
+	<Route path="/student/games/storyteller" element={<STHub />} />
+	<Route path="/student/games/storyteller/play" element={<STSession />} />
+	<Route path="/student/games/storyteller/practice" element={<STPractice />} />
+	<Route path="/student/games/storyteller/bonus" element={<STBonus />} />
+	<Route path="/student/games/storyteller/complete" element={<STComplete />} />
 	<Route path="/student/badges" element={<StudentBadges />} />
 	<Route path="/student/profile" element={<StudentProfile />} />
 	<Route path="/principal" element={<PrincipalDashboard />} />

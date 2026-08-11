@@ -1,0 +1,92 @@
+[
+  {
+    "step": 2,
+    "category_name": "Which one is NOT a fruit?",
+    "number_of_words": 4,
+    "words": [
+      { "word": "mango",   "is_target": false, "l1_hindi": "आम",      "emoji": "🥭", "image_url": null },
+      { "word": "banana",  "is_target": false, "l1_hindi": "केला",    "emoji": "🍌", "image_url": null },
+      { "word": "grapes",  "is_target": false, "l1_hindi": "अंगूर",   "emoji": "🍇", "image_url": null },
+      { "word": "scooter", "is_target": true,  "l1_hindi": "स्कूटर",  "emoji": "🛵", "image_url": null }
+    ],
+    "hint": "Which one cannot be eaten?",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 2,
+    "category_name": "Which one is NOT clothing?",
+    "number_of_words": 4,
+    "words": [
+      { "word": "shirt",  "is_target": false, "l1_hindi": "कमीज़",  "emoji": "👕", "image_url": null },
+      { "word": "pants",  "is_target": false, "l1_hindi": "पैंट",   "emoji": "👖", "image_url": null },
+      { "word": "socks",  "is_target": false, "l1_hindi": "मोज़े",  "emoji": "🧦", "image_url": null },
+      { "word": "parrot", "is_target": true,  "l1_hindi": "तोता",  "emoji": "🦜", "image_url": null }
+    ],
+    "hint": "Which one cannot be worn?",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 2,
+    "category_name": "Which one is NOT a tool?",
+    "number_of_words": 4,
+    "words": [
+      { "word": "hammer",      "is_target": false, "l1_hindi": "हथौड़ा",   "emoji": "🔨", "image_url": null },
+      { "word": "scissors",    "is_target": false, "l1_hindi": "कैंची",    "emoji": "✂️", "image_url": null },
+      { "word": "screwdriver", "is_target": false, "l1_hindi": "पेचकस",   "emoji": "🪛", "image_url": null },
+      { "word": "candy",       "is_target": true,  "l1_hindi": "कैंडी",   "emoji": "🍬", "image_url": null }
+    ],
+    "hint": "Which one cannot fix or cut things?",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 2,
+    "category_name": "Which one is NOT a kitchen item?",
+    "number_of_words": 4,
+    "words": [
+      { "word": "thali",     "is_target": false, "l1_hindi": "थाली",       "emoji": "🍽️", "image_url": null },
+      { "word": "spoon",     "is_target": false, "l1_hindi": "चम्मच",     "emoji": "🥄", "image_url": null },
+      { "word": "katori",    "is_target": false, "l1_hindi": "कटोरी",     "emoji": "🥣", "image_url": null },
+      { "word": "sunflower", "is_target": true,  "l1_hindi": "सूरजमुखी", "emoji": "🌻", "image_url": null }
+    ],
+    "hint": "Which one does NOT belong in the kitchen?",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 2,
+    "category_name": "Which one is NOT an animal?",
+    "number_of_words": 4,
+    "words": [
+      { "word": "elephant", "is_target": false, "l1_hindi": "हाथी",  "emoji": "🐘", "image_url": null },
+      { "word": "monkey",   "is_target": false, "l1_hindi": "बंदर",  "emoji": "🐒", "image_url": null },
+      { "word": "cow",      "is_target": false, "l1_hindi": "गाय",   "emoji": "🐄", "image_url": null },
+      { "word": "carrot",   "is_target": true,  "l1_hindi": "गाजर",  "emoji": "🥕", "image_url": null }
+    ],
+    "hint": "Which one does not breathe or move?",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

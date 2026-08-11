@@ -16,7 +16,7 @@ import { useAuthProfile } from '../lib/useAuthProfile.js';
  *     3. Insert into `submissions` (text_content or file_url per type).
  *     4. For text & audio: compute total_words locally and persist it.
  *        Audio transcript captured live via Web Speech API.
- *     5. Call `supabase.rpc('recalculate_student_scores', { p_submission_id })`.
+ *     5. Call `supabase.rpc('recalculate_student_scores', { p_student_id })`.
  *     6. Navigate to /student.
  */
 export default function StudentAssignmentSubmit() {
@@ -368,7 +368,7 @@ export default function StudentAssignmentSubmit() {
 
       // Trigger score rollup for the period this submission belongs to.
       const { error: rpcErr } = await supabase.rpc('recalculate_student_scores', {
-        p_submission_id: inserted.id,
+        p_student_id: user.id,
       });
       if (rpcErr) {
         // Non-fatal for the student; log and keep going.

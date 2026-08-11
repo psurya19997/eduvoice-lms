@@ -1,0 +1,102 @@
+[
+  {
+    "step": 4,
+    "category_name": "Pick 2 pieces to make: sunflower",
+    "number_of_words": 6,
+    "words": [
+      { "word": "sun",    "is_target": true,  "l1_hindi": "सूरज",  "emoji": "☀️", "image_url": null },
+      { "word": "flower", "is_target": true,  "l1_hindi": "फूल",   "emoji": "🌸", "image_url": null },
+      { "word": "moon",   "is_target": false, "l1_hindi": "चाँद",  "emoji": "🌙", "image_url": null },
+      { "word": "stone",  "is_target": false, "l1_hindi": "पत्थर", "emoji": "🪨", "image_url": null },
+      { "word": "book",   "is_target": false, "l1_hindi": "किताब", "emoji": "📖", "image_url": null },
+      { "word": "cat",    "is_target": false, "l1_hindi": "बिल्ली","emoji": "🐈", "image_url": null }
+    ],
+    "hint": "The sky's bright light + something that blooms.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 4,
+    "category_name": "Pick 2 pieces to make: rainbow",
+    "number_of_words": 6,
+    "words": [
+      { "word": "rain",  "is_target": true,  "l1_hindi": "बारिश",  "emoji": "🌧️", "image_url": null },
+      { "word": "bow",   "is_target": true,  "l1_hindi": "बो",     "emoji": "🎀", "image_url": null },
+      { "word": "chair", "is_target": false, "l1_hindi": "कुर्सी", "emoji": "🪑", "image_url": null },
+      { "word": "apple", "is_target": false, "l1_hindi": "सेब",    "emoji": "🍎", "image_url": null },
+      { "word": "cow",   "is_target": false, "l1_hindi": "गाय",    "emoji": "🐄", "image_url": null },
+      { "word": "tree",  "is_target": false, "l1_hindi": "पेड़",   "emoji": "🌳", "image_url": null }
+    ],
+    "hint": "What falls from clouds + something curved.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 4,
+    "category_name": "Pick 2 pieces to make: football",
+    "number_of_words": 6,
+    "words": [
+      { "word": "foot",  "is_target": true,  "l1_hindi": "पैर",   "emoji": "🦶", "image_url": null },
+      { "word": "ball",  "is_target": true,  "l1_hindi": "गेंद",  "emoji": "⚽", "image_url": null },
+      { "word": "mango", "is_target": false, "l1_hindi": "आम",    "emoji": "🥭", "image_url": null },
+      { "word": "drum",  "is_target": false, "l1_hindi": "ढोल",   "emoji": "🥁", "image_url": null },
+      { "word": "leaf",  "is_target": false, "l1_hindi": "पत्ता", "emoji": "🍃", "image_url": null },
+      { "word": "chair", "is_target": false, "l1_hindi": "कुर्सी","emoji": "🪑", "image_url": null }
+    ],
+    "hint": "A body part + something round.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 4,
+    "category_name": "Pick 2 pieces to make: butterfly",
+    "number_of_words": 6,
+    "words": [
+      { "word": "butter", "is_target": true,  "l1_hindi": "मक्खन", "emoji": "🧈", "image_url": null },
+      { "word": "fly",    "is_target": true,  "l1_hindi": "मक्खी", "emoji": "🪰", "image_url": null },
+      { "word": "sugar",  "is_target": false, "l1_hindi": "चीनी",  "emoji": "🍬", "image_url": null },
+      { "word": "bread",  "is_target": false, "l1_hindi": "ब्रेड", "emoji": "🍞", "image_url": null },
+      { "word": "apple",  "is_target": false, "l1_hindi": "सेब",   "emoji": "🍎", "image_url": null },
+      { "word": "cow",    "is_target": false, "l1_hindi": "गाय",   "emoji": "🐄", "image_url": null }
+    ],
+    "hint": "Spread on bread + a small insect.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 4,
+    "category_name": "Pick 2 pieces to make: starfish",
+    "number_of_words": 6,
+    "words": [
+      { "word": "star",  "is_target": true,  "l1_hindi": "तारा",  "emoji": "⭐", "image_url": null },
+      { "word": "fish",  "is_target": true,  "l1_hindi": "मछली",  "emoji": "🐟", "image_url": null },
+      { "word": "cloud", "is_target": false, "l1_hindi": "बादल",  "emoji": "☁️", "image_url": null },
+      { "word": "apple", "is_target": false, "l1_hindi": "सेब",   "emoji": "🍎", "image_url": null },
+      { "word": "chair", "is_target": false, "l1_hindi": "कुर्सी","emoji": "🪑", "image_url": null },
+      { "word": "tree",  "is_target": false, "l1_hindi": "पेड़",  "emoji": "🌳", "image_url": null }
+    ],
+    "hint": "Twinkles in the sky + swims in water.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

@@ -1,0 +1,9 @@
+[
+  { "key": "vocabulary",    "display_name": "Vocabulary",    "sort_order": 1 },
+  { "key": "grammar",       "display_name": "Grammar",       "sort_order": 2 },
+  { "key": "pronunciation", "display_name": "Pronunciation", "sort_order": 3 },
+  { "key": "listening",     "display_name": "Listening",     "sort_order": 4 },
+  { "key": "reading",       "display_name": "Reading",       "sort_order": 5 },
+  { "key": "speaking",      "display_name": "Speaking",      "sort_order": 6 },
+  { "key": "writing",       "display_name": "Writing",       "sort_order": 7 }
+]

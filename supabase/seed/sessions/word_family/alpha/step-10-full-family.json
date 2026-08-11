@@ -1,0 +1,107 @@
+[
+  {
+    "step": 10,
+    "category_name": "Pick 4 things you see in monsoon",
+    "number_of_words": 7,
+    "words": [
+      { "word": "umbrella",   "is_target": true,  "l1_hindi": "छाता",         "emoji": "☂️", "image_url": null },
+      { "word": "raincoat",   "is_target": true,  "l1_hindi": "बरसाती",       "emoji": "🧥", "image_url": null },
+      { "word": "puddle",     "is_target": true,  "l1_hindi": "पानी का गड्ढा","emoji": "💧", "image_url": null },
+      { "word": "rainbow",    "is_target": true,  "l1_hindi": "इंद्रधनुष",     "emoji": "🌈", "image_url": null },
+      { "word": "sunglasses", "is_target": false, "l1_hindi": "धूप का चश्मा", "emoji": "🕶️", "image_url": null },
+      { "word": "sand",       "is_target": false, "l1_hindi": "रेत",          "emoji": "🏖️", "image_url": null },
+      { "word": "snowman",    "is_target": false, "l1_hindi": "बर्फ़ का पुतला","emoji": "⛄", "image_url": null }
+    ],
+    "hint": "Things that come with rain.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 10,
+    "category_name": "Pick 4 things you see at Diwali",
+    "number_of_words": 7,
+    "words": [
+      { "word": "diya",        "is_target": true,  "l1_hindi": "दीया",   "emoji": "🪔", "image_url": null },
+      { "word": "rangoli",     "is_target": true,  "l1_hindi": "रंगोली", "emoji": "🎨", "image_url": null },
+      { "word": "sweets",      "is_target": true,  "l1_hindi": "मिठाई",  "emoji": "🍬", "image_url": null },
+      { "word": "firecracker", "is_target": true,  "l1_hindi": "पटाखा",  "emoji": "🎆", "image_url": null },
+      { "word": "umbrella",    "is_target": false, "l1_hindi": "छाता",   "emoji": "☂️", "image_url": null },
+      { "word": "chair",       "is_target": false, "l1_hindi": "कुर्सी", "emoji": "🪑", "image_url": null },
+      { "word": "book",        "is_target": false, "l1_hindi": "किताब",  "emoji": "📖", "image_url": null }
+    ],
+    "hint": "Lights, colours, sweets, and sparkles.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 10,
+    "category_name": "Pick 4 things you see in an Indian village",
+    "number_of_words": 7,
+    "words": [
+      { "word": "well",         "is_target": true,  "l1_hindi": "कुआँ",       "emoji": "🕳️", "image_url": null },
+      { "word": "hut",          "is_target": true,  "l1_hindi": "झोपड़ी",     "emoji": "🛖", "image_url": null },
+      { "word": "bullock cart", "is_target": true,  "l1_hindi": "बैलगाड़ी",  "emoji": "🐂", "image_url": null },
+      { "word": "farmer",       "is_target": true,  "l1_hindi": "किसान",     "emoji": "🧑‍🌾", "image_url": null },
+      { "word": "airplane",     "is_target": false, "l1_hindi": "हवाई जहाज़","emoji": "✈️", "image_url": null },
+      { "word": "elevator",     "is_target": false, "l1_hindi": "लिफ़्ट",     "emoji": "🛗", "image_url": null },
+      { "word": "laptop",       "is_target": false, "l1_hindi": "लैपटॉप",    "emoji": "💻", "image_url": null }
+    ],
+    "hint": "No tall buildings, no big machines.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 10,
+    "category_name": "Pick 4 things you see in your classroom",
+    "number_of_words": 7,
+    "words": [
+      { "word": "blackboard", "is_target": true,  "l1_hindi": "श्यामपट",  "emoji": null, "image_url": null },
+      { "word": "chalk",      "is_target": true,  "l1_hindi": "चॉक",     "emoji": null, "image_url": null },
+      { "word": "bench",      "is_target": true,  "l1_hindi": "बेंच",    "emoji": "🪑", "image_url": null },
+      { "word": "teacher",    "is_target": true,  "l1_hindi": "शिक्षक",  "emoji": "🧑‍🏫", "image_url": null },
+      { "word": "elephant",   "is_target": false, "l1_hindi": "हाथी",    "emoji": "🐘", "image_url": null },
+      { "word": "mango",      "is_target": false, "l1_hindi": "आम",      "emoji": "🥭", "image_url": null },
+      { "word": "kite",       "is_target": false, "l1_hindi": "पतंग",    "emoji": "🪁", "image_url": null }
+    ],
+    "hint": "Where you sit and learn.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 10,
+    "category_name": "Pick 4 things you see at a harvest festival",
+    "number_of_words": 7,
+    "words": [
+      { "word": "crops",    "is_target": true,  "l1_hindi": "फ़सलें", "emoji": "🌾", "image_url": null },
+      { "word": "drum",     "is_target": true,  "l1_hindi": "ढोल",   "emoji": "🥁", "image_url": null },
+      { "word": "dance",    "is_target": true,  "l1_hindi": "नृत्य", "emoji": "💃", "image_url": null },
+      { "word": "sweets",   "is_target": true,  "l1_hindi": "मिठाई", "emoji": "🍬", "image_url": null },
+      { "word": "laptop",   "is_target": false, "l1_hindi": "लैपटॉप","emoji": "💻", "image_url": null },
+      { "word": "bus",      "is_target": false, "l1_hindi": "बस",    "emoji": "🚌", "image_url": null },
+      { "word": "umbrella", "is_target": false, "l1_hindi": "छाता",  "emoji": "☂️", "image_url": null }
+    ],
+    "hint": "Farmers celebrate when crops are ready.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

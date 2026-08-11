@@ -1,0 +1,102 @@
+[
+  {
+    "step": 9,
+    "category_name": "Pick the 4 stages of a plant's life",
+    "number_of_words": 6,
+    "words": [
+      { "word": "seed",    "is_target": true,  "l1_hindi": "बीज",   "emoji": "🌰", "image_url": null },
+      { "word": "sprout",  "is_target": true,  "l1_hindi": "अंकुर", "emoji": "🌱", "image_url": null },
+      { "word": "sapling", "is_target": true,  "l1_hindi": "पौधा", "emoji": "🌿", "image_url": null },
+      { "word": "tree",    "is_target": true,  "l1_hindi": "पेड़",  "emoji": "🌳", "image_url": null },
+      { "word": "stone",   "is_target": false, "l1_hindi": "पत्थर","emoji": "🪨", "image_url": null },
+      { "word": "water",   "is_target": false, "l1_hindi": "पानी",  "emoji": "💧", "image_url": null }
+    ],
+    "hint": "From tiny to tallest.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 9,
+    "category_name": "Pick the 4 stages of a butterfly's life",
+    "number_of_words": 6,
+    "words": [
+      { "word": "egg",         "is_target": true,  "l1_hindi": "अंडा",  "emoji": "🥚", "image_url": null },
+      { "word": "caterpillar", "is_target": true,  "l1_hindi": "सुंडी", "emoji": "🐛", "image_url": null },
+      { "word": "cocoon",      "is_target": true,  "l1_hindi": "कोकून", "emoji": null, "image_url": null },
+      { "word": "butterfly",   "is_target": true,  "l1_hindi": "तितली", "emoji": "🦋", "image_url": null },
+      { "word": "fish",        "is_target": false, "l1_hindi": "मछली",  "emoji": "🐟", "image_url": null },
+      { "word": "mango",       "is_target": false, "l1_hindi": "आम",    "emoji": "🥭", "image_url": null }
+    ],
+    "hint": "It crawls, sleeps in a shell, then flies.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 9,
+    "category_name": "Pick the 4 stages of a frog's life",
+    "number_of_words": 6,
+    "words": [
+      { "word": "egg",       "is_target": true,  "l1_hindi": "अंडा",             "emoji": "🥚", "image_url": null },
+      { "word": "tadpole",   "is_target": true,  "l1_hindi": "मेंढक का बच्चा",  "emoji": null, "image_url": null },
+      { "word": "froglet",   "is_target": true,  "l1_hindi": "छोटा मेंढक",      "emoji": null, "image_url": null },
+      { "word": "frog",      "is_target": true,  "l1_hindi": "मेंढक",            "emoji": "🐸", "image_url": null },
+      { "word": "butterfly", "is_target": false, "l1_hindi": "तितली",            "emoji": "🦋", "image_url": null },
+      { "word": "bird",      "is_target": false, "l1_hindi": "चिड़िया",         "emoji": "🐦", "image_url": null }
+    ],
+    "hint": "It starts in water and grows legs.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 9,
+    "category_name": "Pick the 4 parts of a day",
+    "number_of_words": 6,
+    "words": [
+      { "word": "morning", "is_target": true,  "l1_hindi": "सुबह",  "emoji": "🌅", "image_url": null },
+      { "word": "noon",    "is_target": true,  "l1_hindi": "दोपहर", "emoji": "☀️", "image_url": null },
+      { "word": "evening", "is_target": true,  "l1_hindi": "शाम",   "emoji": "🌇", "image_url": null },
+      { "word": "night",   "is_target": true,  "l1_hindi": "रात",   "emoji": "🌙", "image_url": null },
+      { "word": "rain",    "is_target": false, "l1_hindi": "बारिश", "emoji": "🌧️", "image_url": null },
+      { "word": "cloud",   "is_target": false, "l1_hindi": "बादल",  "emoji": "☁️", "image_url": null }
+    ],
+    "hint": "Sunrise, high sun, sunset, and dark.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 9,
+    "category_name": "Pick the 4 stages of human life",
+    "number_of_words": 6,
+    "words": [
+      { "word": "baby",  "is_target": true,  "l1_hindi": "बच्चा",  "emoji": "👶", "image_url": null },
+      { "word": "child", "is_target": true,  "l1_hindi": "बालक",   "emoji": "🧒", "image_url": null },
+      { "word": "adult", "is_target": true,  "l1_hindi": "वयस्क",  "emoji": "🧑", "image_url": null },
+      { "word": "elder", "is_target": true,  "l1_hindi": "बुज़ुर्ग", "emoji": "👴", "image_url": null },
+      { "word": "dog",   "is_target": false, "l1_hindi": "कुत्ता", "emoji": "🐕", "image_url": null },
+      { "word": "tree",  "is_target": false, "l1_hindi": "पेड़",   "emoji": "🌳", "image_url": null }
+    ],
+    "hint": "From newborn to grandparent.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

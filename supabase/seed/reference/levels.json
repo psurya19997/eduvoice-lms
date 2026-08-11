@@ -1,0 +1,5 @@
+[
+  { "key": "alpha", "display_name": "Alpha", "cefr_level": "A1", "ordinal": 1 },
+  { "key": "beta",  "display_name": "Beta",  "cefr_level": "A2", "ordinal": 2 },
+  { "key": "gamma", "display_name": "Gamma", "cefr_level": "B1", "ordinal": 3 }
+]

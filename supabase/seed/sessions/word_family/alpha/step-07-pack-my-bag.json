@@ -1,0 +1,102 @@
+[
+  {
+    "step": 7,
+    "category_name": "Pack for school — pick 3 things",
+    "number_of_words": 6,
+    "words": [
+      { "word": "tiffin",       "is_target": true,  "l1_hindi": "टिफ़िन",         "emoji": "🍱", "image_url": null },
+      { "word": "book",         "is_target": true,  "l1_hindi": "किताब",         "emoji": "📖", "image_url": null },
+      { "word": "water bottle", "is_target": true,  "l1_hindi": "पानी की बोतल", "emoji": "🥤", "image_url": null },
+      { "word": "football",     "is_target": false, "l1_hindi": "फ़ुटबॉल",       "emoji": "⚽", "image_url": null },
+      { "word": "kite",         "is_target": false, "l1_hindi": "पतंग",          "emoji": "🪁", "image_url": null },
+      { "word": "cake",         "is_target": false, "l1_hindi": "केक",           "emoji": "🎂", "image_url": null }
+    ],
+    "hint": "For studies, food, and thirst.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 7,
+    "category_name": "Pack for a rainy day — pick 3 things",
+    "number_of_words": 6,
+    "words": [
+      { "word": "umbrella",   "is_target": true,  "l1_hindi": "छाता",    "emoji": "☂️", "image_url": null },
+      { "word": "raincoat",   "is_target": true,  "l1_hindi": "बरसाती",  "emoji": "🧥", "image_url": null },
+      { "word": "boots",      "is_target": true,  "l1_hindi": "बूट",     "emoji": "🥾", "image_url": null },
+      { "word": "sunglasses", "is_target": false, "l1_hindi": "धूप का चश्मा", "emoji": "🕶️", "image_url": null },
+      { "word": "ball",       "is_target": false, "l1_hindi": "गेंद",    "emoji": "⚽", "image_url": null },
+      { "word": "cake",       "is_target": false, "l1_hindi": "केक",     "emoji": "🎂", "image_url": null }
+    ],
+    "hint": "To stay dry — head to toe.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 7,
+    "category_name": "Pack for a picnic — pick 3 things",
+    "number_of_words": 6,
+    "words": [
+      { "word": "basket", "is_target": true,  "l1_hindi": "टोकरी",  "emoji": "🧺", "image_url": null },
+      { "word": "snacks", "is_target": true,  "l1_hindi": "नाश्ता", "emoji": "🥪", "image_url": null },
+      { "word": "ball",   "is_target": true,  "l1_hindi": "गेंद",   "emoji": "⚽", "image_url": null },
+      { "word": "umbrella","is_target": false,"l1_hindi": "छाता",   "emoji": "☂️", "image_url": null },
+      { "word": "book",   "is_target": false, "l1_hindi": "किताब",  "emoji": "📖", "image_url": null },
+      { "word": "chair",  "is_target": false, "l1_hindi": "कुर्सी", "emoji": "🪑", "image_url": null }
+    ],
+    "hint": "To carry, to eat, to play.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 7,
+    "category_name": "Pack for a beach visit — pick 3 things",
+    "number_of_words": 6,
+    "words": [
+      { "word": "hat",       "is_target": true,  "l1_hindi": "टोपी",     "emoji": "👒", "image_url": null },
+      { "word": "sandals",   "is_target": true,  "l1_hindi": "चप्पल",   "emoji": "🩴", "image_url": null },
+      { "word": "sunscreen", "is_target": true,  "l1_hindi": "सनस्क्रीन","emoji": "🧴", "image_url": null },
+      { "word": "sweater",   "is_target": false, "l1_hindi": "स्वेटर",  "emoji": "🧥", "image_url": null },
+      { "word": "book",      "is_target": false, "l1_hindi": "किताब",   "emoji": "📖", "image_url": null },
+      { "word": "drum",      "is_target": false, "l1_hindi": "ढोल",     "emoji": "🥁", "image_url": null }
+    ],
+    "hint": "Sun protection and easy walking.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 7,
+    "category_name": "Pack for a birthday party — pick 3 things",
+    "number_of_words": 6,
+    "words": [
+      { "word": "gift",     "is_target": true,  "l1_hindi": "उपहार",   "emoji": "🎁", "image_url": null },
+      { "word": "cake",     "is_target": true,  "l1_hindi": "केक",     "emoji": "🎂", "image_url": null },
+      { "word": "balloons", "is_target": true,  "l1_hindi": "गुब्बारे","emoji": "🎈", "image_url": null },
+      { "word": "pencil",   "is_target": false, "l1_hindi": "पेंसिल",  "emoji": "✏️", "image_url": null },
+      { "word": "tomato",   "is_target": false, "l1_hindi": "टमाटर",   "emoji": "🍅", "image_url": null },
+      { "word": "sock",     "is_target": false, "l1_hindi": "मोज़ा",   "emoji": "🧦", "image_url": null }
+    ],
+    "hint": "For giving, eating, and decorating.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

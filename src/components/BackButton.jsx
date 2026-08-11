@@ -2,12 +2,15 @@ import { useNavigate } from 'react-router-dom';
 
 /**
  * Circular back button used in the top-left of most screens.
- * Falls back to `to` prop if there's no history to go back to.
+ * By default: browser-history back if any, else navigate to `to`.
+ * Pass alwaysUseTo=true to force navigation to `to` regardless of history —
+ * use this where you need deterministic back behavior (e.g., pages the kid
+ * might reach via a deep link, so `-1` could take them somewhere unexpected).
  */
-export default function BackButton({ to = '/', className = '' }) {
+export default function BackButton({ to = '/', className = '', alwaysUseTo = false }) {
   const navigate = useNavigate();
   const handleClick = () => {
-    if (window.history.length > 1) navigate(-1);
+    if (!alwaysUseTo && window.history.length > 1) navigate(-1);
     else navigate(to);
   };
   return (

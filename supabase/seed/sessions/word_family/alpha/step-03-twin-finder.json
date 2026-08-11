@@ -1,0 +1,102 @@
+[
+  {
+    "step": 3,
+    "category_name": "Which 2 do you wear together?",
+    "number_of_words": 6,
+    "words": [
+      { "word": "sock",  "is_target": true,  "l1_hindi": "मोज़ा",   "emoji": "🧦", "image_url": null },
+      { "word": "shoe",  "is_target": true,  "l1_hindi": "जूता",   "emoji": "👟", "image_url": null },
+      { "word": "plate", "is_target": false, "l1_hindi": "प्लेट",  "emoji": "🍽️", "image_url": null },
+      { "word": "dog",   "is_target": false, "l1_hindi": "कुत्ता", "emoji": "🐕", "image_url": null },
+      { "word": "pen",   "is_target": false, "l1_hindi": "कलम",    "emoji": "🖊️", "image_url": null },
+      { "word": "chair", "is_target": false, "l1_hindi": "कुर्सी", "emoji": "🪑", "image_url": null }
+    ],
+    "hint": "Both go on your feet.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 3,
+    "category_name": "Which 2 open together?",
+    "number_of_words": 6,
+    "words": [
+      { "word": "key",   "is_target": true,  "l1_hindi": "चाबी",  "emoji": "🔑", "image_url": null },
+      { "word": "lock",  "is_target": true,  "l1_hindi": "ताला",  "emoji": "🔒", "image_url": null },
+      { "word": "apple", "is_target": false, "l1_hindi": "सेब",   "emoji": "🍎", "image_url": null },
+      { "word": "tree",  "is_target": false, "l1_hindi": "पेड़",  "emoji": "🌳", "image_url": null },
+      { "word": "book",  "is_target": false, "l1_hindi": "किताब", "emoji": "📖", "image_url": null },
+      { "word": "cow",   "is_target": false, "l1_hindi": "गाय",   "emoji": "🐄", "image_url": null }
+    ],
+    "hint": "One is metal, the other holds it shut.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 3,
+    "category_name": "Which 2 do you eat rice from?",
+    "number_of_words": 6,
+    "words": [
+      { "word": "thali",  "is_target": true,  "l1_hindi": "थाली",   "emoji": "🍽️", "image_url": null },
+      { "word": "katori", "is_target": true,  "l1_hindi": "कटोरी",  "emoji": "🥣", "image_url": null },
+      { "word": "kite",   "is_target": false, "l1_hindi": "पतंग",   "emoji": "🪁", "image_url": null },
+      { "word": "dog",    "is_target": false, "l1_hindi": "कुत्ता", "emoji": "🐕", "image_url": null },
+      { "word": "pencil", "is_target": false, "l1_hindi": "पेंसिल", "emoji": "✏️", "image_url": null },
+      { "word": "ball",   "is_target": false, "l1_hindi": "गेंद",   "emoji": "⚽", "image_url": null }
+    ],
+    "hint": "Look for a plate and a small bowl.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 3,
+    "category_name": "Which 2 do you use to play cricket?",
+    "number_of_words": 6,
+    "words": [
+      { "word": "bat",   "is_target": true,  "l1_hindi": "बल्ला", "emoji": "🏏", "image_url": null },
+      { "word": "ball",  "is_target": true,  "l1_hindi": "गेंद",  "emoji": "⚾", "image_url": null },
+      { "word": "mango", "is_target": false, "l1_hindi": "आम",    "emoji": "🥭", "image_url": null },
+      { "word": "tree",  "is_target": false, "l1_hindi": "पेड़",  "emoji": "🌳", "image_url": null },
+      { "word": "sock",  "is_target": false, "l1_hindi": "मोज़ा", "emoji": "🧦", "image_url": null },
+      { "word": "book",  "is_target": false, "l1_hindi": "किताब", "emoji": "📖", "image_url": null }
+    ],
+    "hint": "One hits, the other is hit.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 3,
+    "category_name": "Which 2 do you use for sewing?",
+    "number_of_words": 6,
+    "words": [
+      { "word": "needle",   "is_target": true,  "l1_hindi": "सुई",   "emoji": "🪡", "image_url": null },
+      { "word": "thread",   "is_target": true,  "l1_hindi": "धागा",  "emoji": "🧵", "image_url": null },
+      { "word": "umbrella", "is_target": false, "l1_hindi": "छाता",  "emoji": "☂️", "image_url": null },
+      { "word": "cat",      "is_target": false, "l1_hindi": "बिल्ली","emoji": "🐈", "image_url": null },
+      { "word": "cake",     "is_target": false, "l1_hindi": "केक",   "emoji": "🎂", "image_url": null },
+      { "word": "drum",     "is_target": false, "l1_hindi": "ढोल",   "emoji": "🥁", "image_url": null }
+    ],
+    "hint": "One is sharp, the other passes through it.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]

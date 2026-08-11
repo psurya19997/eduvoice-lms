@@ -1,41 +1,20 @@
+// ============================================================================
+// whisper-failsafe — DEPLOYED VERSION (v10, active on live project)
+//
+// This file mirrors the source currently running on Supabase, retrieved via
+// get_edge_function('whisper-failsafe') on 2026-07-24.
+//
+// A more advanced version with segment-level hallucination filtering, an
+// expanded junk/prompt-echo list, and a no-prompt strategy exists at
+//   docs-archive/supabase-functions-improvements-not-deployed/whisper-failsafe/index.ts
+// It was intentionally NOT deployed — treat that archived file as reference
+// for planned improvements, not as what runs today.
+//
+// Invocation: pg_cron job `audio-failsafe-check` (jobid 8) POSTs to
+// /functions/v1/whisper-failsafe every 30 minutes with a service-role JWT.
+// See supabase/live-schema.sql section 5.
+// ============================================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-// Prompt-echo phrases — Whisper sometimes regurgitates the `prompt` parameter
-// into the transcript on silent/quiet audio. We strip them at both the segment
-// level and as a final safety net on the joined string.
-const PROMPT_ECHO_PHRASES = [
-  "transcribe every single word",
-  "transcribe the student",
-  "background noise",
-  "the child says",
-  "including all repetitions",
-  "filler words",
-];
-
-// Per-segment thresholds from Whisper's verbose_json output:
-//   no_speech_prob > 0.6  → Whisper is fairly sure this segment is silence/noise,
-//                           so its "text" is likely a hallucinated fill-in.
-//   avg_logprob   < -1.0  → token confidence is low; these are the segments
-//                           where Whisper most often invents prompt echoes or
-//                           subtitle-style boilerplate.
-const NO_SPEECH_PROB_MAX = 0.6;
-const AVG_LOGPROB_MIN = -1.0;
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function filterSegments(segments: any[]): any[] {
-  if (!Array.isArray(segments)) return [];
-  return segments.filter((seg) => {
-    if (typeof seg?.text !== 'string') return false;
-    if (typeof seg.no_speech_prob === 'number' && seg.no_speech_prob > NO_SPEECH_PROB_MAX) return false;
-    if (typeof seg.avg_logprob === 'number' && seg.avg_logprob < AVG_LOGPROB_MIN) return false;
-    const lower = seg.text.toLowerCase();
-    if (PROMPT_ECHO_PHRASES.some((p) => lower.includes(p))) return false;
-    return true;
-  });
-}
 
 Deno.serve(async (req) => {
   const supabase = createClient(
@@ -80,8 +59,7 @@ Deno.serve(async (req) => {
       formData.append("file", blob, "audio.webm");
       formData.append("model", "whisper-1");
       formData.append("response_format", "verbose_json");
-      // NOTE: No `prompt` is sent. Whisper treats `prompt` as prior speech, not
-      // an instruction, and echoes it into the transcript on silent intros.
+      formData.append("prompt", "Transcribe the student speaking clearly, including all repetitions and filler words.");
 
       let res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
         method: "POST",
@@ -110,99 +88,46 @@ Deno.serve(async (req) => {
       }
 
       let detectedDuration = parseFloat(result.duration) || 0;
+      let finalStr = result.text || "";
 
-      // Filter segments to drop silence, low-confidence, and prompt-echo lines.
-      const originalSegments = Array.isArray(result.segments) ? result.segments : [];
-      let cleanSegments = filterSegments(originalSegments);
-      let finalStr = cleanSegments.map((s: any) => s.text).join(' ');
-
-      // Final-pass junk filter on the joined string — includes both the
-      // historical subtitle-spam phrases and the prompt-echo phrases as a
-      // safety net in case any slipped past segment filtering.
-      const junk = [
-        "Thank you.",
-        "Subtitle by",
-        "Thanks for watching",
-        "Please subscribe",
-        "Amara.org",
-        "MBC 뉴스",
-        "字幕 by",
-        "Transcription by",
-        "♪",
-        ...PROMPT_ECHO_PHRASES,
-      ];
+      const junk = ["Thank you.", "Subtitle by", "Thanks for watching", "Please subscribe", "Amara.org"];
       junk.forEach(p => {
-        const reg = new RegExp(escapeRegex(p), "gi");
+        const reg = new RegExp(p, "gi");
         finalStr = finalStr.replace(reg, "");
       });
 
-      // WPM uses the FULL clip duration (not speech span) on purpose: a 30s
-      // recording with 10s of speech should score against the full 30s, since
-      // that reflects real reading performance against the recording window.
       const durationMin = detectedDuration / 60;
-      const wpm = durationMin > 0 ? (finalStr.trim().split(/\s+/).filter(Boolean).length / durationMin) : 0;
+      const wpm = durationMin > 0 ? (finalStr.trim().split(/\s+/).length / durationMin) : 0;
 
-      // Smart Retry: only retry when there's evidence of real failure.
-      //   (a) we filtered out everything despite Whisper hearing something, or
-      //   (b) speech exists but is sparse (low WPM with >=2 clean segments).
-      const shouldRetry = !finalStr.trim().startsWith('[') && (
-        (finalStr.trim().length === 0 && blob.size > 100 && originalSegments.length > 0) ||
-        (wpm < 30 && cleanSegments.length >= 2)
-      );
-
-      if (shouldRetry) {
-        // Retry with NO prompt — passing a different prompt only gives Whisper
-        // new words to echo back on quiet audio. Build a fresh FormData rather
-        // than reusing the original to avoid any "body already consumed" risk.
-        const retryFormData = new FormData();
-        retryFormData.append("file", blob, "audio.webm");
-        retryFormData.append("model", "whisper-1");
-        retryFormData.append("response_format", "verbose_json");
-
+      // Smart Retry for Quality
+      if (wpm < 30 && !finalStr.startsWith('[')) {
+        formData.set("prompt", "The audio is very quiet or has background noise. Transcribe every single word the child says.");
         const retryRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
           method: "POST",
           headers: { "Authorization": `Bearer ${Deno.env.get('OPENAI_API_KEY')}` },
-          body: retryFormData,
+          body: formData,
         });
         const retryResult = await retryRes.json();
-        if (!retryResult.error) {
-          const retrySegments = Array.isArray(retryResult.segments) ? retryResult.segments : [];
-          const retryClean = filterSegments(retrySegments);
-          let retryStr = retryClean.map((s: any) => s.text).join(' ');
-          junk.forEach(p => {
-            const reg = new RegExp(escapeRegex(p), "gi");
-            retryStr = retryStr.replace(reg, "");
-          });
-          if (retryStr.trim().length > finalStr.trim().length) {
-            finalStr = retryStr;
-            cleanSegments = retryClean;
-            detectedDuration = parseFloat(retryResult.duration) || detectedDuration;
-          }
+        if (retryResult.text && retryResult.text.length > finalStr.length) {
+          finalStr = retryResult.text;
+          detectedDuration = parseFloat(retryResult.duration) || detectedDuration;
         }
       }
 
-      finalStr = finalStr.trim().replace(/\s+/g, ' ') || '[No Speech Detected]';
-
-      // Recompute WPM after retry/cleanup — still against full clip duration.
-      const finalDurationMin = detectedDuration / 60;
-      const finalWpm = finalDurationMin > 0 && !finalStr.startsWith('[')
-        ? (finalStr.split(/\s+/).filter(Boolean).length / finalDurationMin)
-        : 0;
+      finalStr = finalStr.trim() || '[No Speech Detected]';
 
       // --- TIERED UPDATE LOGIC ---
       let transcriptToSave = sub.transcript;
       let newRetryCount = sub.retry_count || 0;
 
       if (sub.transcript === null) {
-        // CASE: Initial Fill - Fill and keep retry at 0 for a second pass,
-        // UNLESS the result is a bracketed sentinel (e.g. [No Speech Detected]),
-        // in which case there's nothing worth rescuing — lock retry to 1.
+        // CASE: Initial Fill - Fill and keep retry at 0 for a second pass
         transcriptToSave = finalStr;
-        newRetryCount = finalStr.startsWith('[') ? 1 : 0;
+        newRetryCount = 0;
       } else {
         // CASE: Quality/Duration Rescue - Set retry to 1 to lock it
         newRetryCount = 1;
-        if (finalWpm < 30) {
+        if (wpm < 30) {
           transcriptToSave = finalStr; // Overwrite poor quality
         }
         // If WPM > 30, we keep the original sub.transcript
@@ -214,13 +139,13 @@ Deno.serve(async (req) => {
         .update({
           transcript: transcriptToSave,
           audio_duration: detectedDuration,
-          total_words: transcriptToSave.startsWith('[') ? 0 : transcriptToSave.split(/\s+/).filter(Boolean).length,
+          total_words: transcriptToSave.startsWith('[') ? 0 : transcriptToSave.split(/\s+/).length,
           retry_count: newRetryCount
         })
         .eq('id', sub.id);
 
       if (!updateError) {
-        await supabase.rpc('recalculate_student_scores', { p_submission_id: sub.id });
+        await supabase.rpc('recalculate_student_scores', { p_student_id: sub.student_id });
       }
 
     } catch (e) {

@@ -165,6 +165,36 @@ export default function StudentDashboard() {
         />
       </div>
 
+      {/* Games hero */}
+      <div className="px-6 pt-6">
+        <Link
+          to="/student/games"
+          className="
+            relative block rounded-3xl overflow-hidden
+            bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500
+            p-4 shadow-lg active:scale-[0.99] transition
+          "
+        >
+          <div className="absolute -right-4 -top-4 text-[110px] opacity-20 leading-none">🎮</div>
+          <div className="relative flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-white/25 backdrop-blur flex items-center justify-center text-2xl">
+              🧩
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-extrabold uppercase tracking-widest text-white/80">
+                Game Zone
+              </div>
+              <div className="text-[16px] font-black text-white leading-tight">
+                Play Games →
+              </div>
+              <div className="mt-0.5 text-[11.5px] font-semibold text-white/85">
+                Vocabulary, sentence builder, and more.
+              </div>
+            </div>
+          </div>
+        </Link>
+      </div>
+
       {/* Courses section */}
       <div className="px-6 pt-6 pb-3">
         <h2 className="text-[17px] font-extrabold text-slate-900">Your courses</h2>

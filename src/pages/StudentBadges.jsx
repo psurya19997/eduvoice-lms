@@ -5,8 +5,8 @@ import { supabase } from '../lib/supabase.js';
 import { useAuthProfile } from '../lib/useAuthProfile.js';
 
 const BADGES = [
-  { type: 'weekly_streak',  emoji: '🔥', name: 'Weekly Streak',  desc: 'Weeks with at least 1 submission' },
-  { type: 'monthly_streak', emoji: '🏆', name: 'Monthly Streak', desc: 'Months with at least 1 submission' },
+  { type: 'weekly_streak',  emoji: '🔥', name: 'Weekly Streak',  desc: 'Weeks with at least 1 activity' },
+  { type: 'monthly_streak', emoji: '🏆', name: 'Monthly Streak', desc: 'Months with at least 1 activity' },
   { type: 'weekly_top5',    emoji: '⭐', name: 'Weekly Top 5',   desc: 'Times ranked top 5 weekly' },
   { type: 'monthly_top5',   emoji: '🥇', name: 'Monthly Top 5',  desc: 'Times ranked top 5 monthly' },
 ];
@@ -40,16 +40,18 @@ export default function StudentBadges() {
     (async () => {
       setLoading(true);
       try {
-        /**
-         * 1. Streaks: Counted live from submissions.[cite: 2]
-         * 2. Top-5: Read from `badges` table (populated by backend seal job).[cite: 2, 7]
-         */
-        const [{ data: subs }, { data: badgeRows }] = await Promise.all([
+        // Streaks: unique weeks/months of activity — a submission OR a game play counts.
+        // Top-5: read from `badges` table (populated by nightly seal job).
+        const [{ data: subs }, { data: games }, { data: badgeRows }] = await Promise.all([
           supabase
             .from('submissions')
             .select('submitted_at')
             .eq('student_id', user.id)
             .eq('is_visible', true),
+          supabase
+            .from('game_score')
+            .select('played_at')
+            .eq('student_id', user.id),
           supabase
             .from('badges')
             .select('badge_type, count')
@@ -58,13 +60,18 @@ export default function StudentBadges() {
 
         if (cancelled) return;
 
-        // Calculate streaks based on unique submission periods[cite: 2]
         const weeks = new Set();
         const months = new Set();
         (subs ?? []).forEach((s) => {
           if (s.submitted_at) {
             weeks.add(weekKey(s.submitted_at));
             months.add(monthKey(s.submitted_at));
+          }
+        });
+        (games ?? []).forEach((g) => {
+          if (g.played_at) {
+            weeks.add(weekKey(g.played_at));
+            months.add(monthKey(g.played_at));
           }
         });
 

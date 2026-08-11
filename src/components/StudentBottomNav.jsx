@@ -16,6 +16,7 @@ export default function StudentBottomNav() {
       "
     >
       <Tab to="/student" label="Home" icon={HomeIcon} />
+      <Tab to="/student/games" label="Games" icon={GamesIcon} />
       <Tab to="/student/leaderboard" label="Leaderboard" icon={TrophyIcon} />
       <Tab to="/student/badges" label="Badges" icon={MedalIcon} />
       <Tab to="/student/profile" label="Profile" icon={UserIcon} />
@@ -78,6 +79,18 @@ function MedalIcon({ active }) {
         fill={active ? 'currentColor' : 'none'}
         fillOpacity={active ? 0.15 : 0} />
       <path d="M8 3l4 6 4-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function GamesIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="7" width="18" height="12" rx="4"
+        stroke="currentColor" strokeWidth="2"
+        fill={active ? 'currentColor' : 'none'}
+        fillOpacity={active ? 0.15 : 0} />
+      <circle cx="9" cy="13" r="1.2" fill="currentColor" />
+      <path d="M13.5 11.5h3M15 10v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

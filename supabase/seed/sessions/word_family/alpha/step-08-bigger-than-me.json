@@ -1,0 +1,102 @@
+[
+  {
+    "step": 8,
+    "category_name": "Pick 3 things BIGGER than you",
+    "number_of_words": 6,
+    "words": [
+      { "word": "elephant", "is_target": true,  "l1_hindi": "हाथी",   "emoji": "🐘", "image_url": null },
+      { "word": "bus",      "is_target": true,  "l1_hindi": "बस",     "emoji": "🚌", "image_url": null },
+      { "word": "tree",     "is_target": true,  "l1_hindi": "पेड़",   "emoji": "🌳", "image_url": null },
+      { "word": "mouse",    "is_target": false, "l1_hindi": "चूहा",   "emoji": "🐭", "image_url": null },
+      { "word": "pencil",   "is_target": false, "l1_hindi": "पेंसिल", "emoji": "✏️", "image_url": null },
+      { "word": "mango",    "is_target": false, "l1_hindi": "आम",     "emoji": "🥭", "image_url": null }
+    ],
+    "hint": "Compare with your own height.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 8,
+    "category_name": "Pick 3 things SMALLER than your hand",
+    "number_of_words": 6,
+    "words": [
+      { "word": "ant",    "is_target": true,  "l1_hindi": "चींटी",     "emoji": "🐜", "image_url": null },
+      { "word": "coin",   "is_target": true,  "l1_hindi": "सिक्का",    "emoji": "🪙", "image_url": null },
+      { "word": "peanut", "is_target": true,  "l1_hindi": "मूँगफली",  "emoji": "🥜", "image_url": null },
+      { "word": "house",  "is_target": false, "l1_hindi": "घर",        "emoji": "🏠", "image_url": null },
+      { "word": "car",    "is_target": false, "l1_hindi": "गाड़ी",    "emoji": "🚗", "image_url": null },
+      { "word": "tree",   "is_target": false, "l1_hindi": "पेड़",     "emoji": "🌳", "image_url": null }
+    ],
+    "hint": "So small you can hide them in your fingers.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 8,
+    "category_name": "Pick 3 things HEAVIER than you",
+    "number_of_words": 6,
+    "words": [
+      { "word": "car",     "is_target": true,  "l1_hindi": "गाड़ी", "emoji": "🚗", "image_url": null },
+      { "word": "truck",   "is_target": true,  "l1_hindi": "ट्रक",  "emoji": "🚛", "image_url": null },
+      { "word": "cow",     "is_target": true,  "l1_hindi": "गाय",   "emoji": "🐄", "image_url": null },
+      { "word": "feather", "is_target": false, "l1_hindi": "पंख",   "emoji": "🪶", "image_url": null },
+      { "word": "book",    "is_target": false, "l1_hindi": "किताब", "emoji": "📖", "image_url": null },
+      { "word": "apple",   "is_target": false, "l1_hindi": "सेब",   "emoji": "🍎", "image_url": null }
+    ],
+    "hint": "Would you struggle to lift these?",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 8,
+    "category_name": "Pick 3 things LIGHTER than a book",
+    "number_of_words": 6,
+    "words": [
+      { "word": "feather",  "is_target": true,  "l1_hindi": "पंख",   "emoji": "🪶", "image_url": null },
+      { "word": "leaf",     "is_target": true,  "l1_hindi": "पत्ता", "emoji": "🍃", "image_url": null },
+      { "word": "paper",    "is_target": true,  "l1_hindi": "कागज़", "emoji": "📄", "image_url": null },
+      { "word": "brick",    "is_target": false, "l1_hindi": "ईंट",   "emoji": "🧱", "image_url": null },
+      { "word": "hammer",   "is_target": false, "l1_hindi": "हथौड़ा","emoji": "🔨", "image_url": null },
+      { "word": "elephant", "is_target": false, "l1_hindi": "हाथी",  "emoji": "🐘", "image_url": null }
+    ],
+    "hint": "Would they float away in the wind?",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  },
+  {
+    "step": 8,
+    "category_name": "Pick 3 things TALLER than your father",
+    "number_of_words": 6,
+    "words": [
+      { "word": "giraffe",      "is_target": true,  "l1_hindi": "जिराफ़",         "emoji": "🦒", "image_url": null },
+      { "word": "tower",        "is_target": true,  "l1_hindi": "मीनार",         "emoji": "🗼", "image_url": null },
+      { "word": "coconut tree", "is_target": true,  "l1_hindi": "नारियल का पेड़","emoji": "🌴", "image_url": null },
+      { "word": "dog",          "is_target": false, "l1_hindi": "कुत्ता",         "emoji": "🐕", "image_url": null },
+      { "word": "chair",        "is_target": false, "l1_hindi": "कुर्सी",         "emoji": "🪑", "image_url": null },
+      { "word": "cat",          "is_target": false, "l1_hindi": "बिल्ली",         "emoji": "🐈", "image_url": null }
+    ],
+    "hint": "Things that reach very high.",
+    "time_limit_seconds": null,
+    "show_category_prompt": true,
+    "show_image": true,
+    "l1_support": "on_tap",
+    "require_production": false,
+    "is_active": true
+  }
+]
