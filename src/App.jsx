@@ -41,7 +41,7 @@ import STHub from './pages/STHub.jsx';
 import STSession from './pages/STSession.jsx';
 import STComplete from './pages/STComplete.jsx';
 import STPractice from './pages/STPractice.jsx';
-import STBonus from './pages/STBonus.jsx';
+// import STBonus from './pages/STBonus.jsx'; // Q&A feature excluded for now
 
 // Placeholder — each real screen will replace this as we build.
 function Placeholder({ title }) {
@@ -90,7 +90,7 @@ export default function App() {
 	<Route path="/student/games/storyteller" element={<STHub />} />
 	<Route path="/student/games/storyteller/play" element={<STSession />} />
 	<Route path="/student/games/storyteller/practice" element={<STPractice />} />
-	<Route path="/student/games/storyteller/bonus" element={<STBonus />} />
+	<Route path="/student/games/storyteller/bonus" element={<Placeholder title="Bonus Q&A" />} />
 	<Route path="/student/games/storyteller/complete" element={<STComplete />} />
 	<Route path="/student/badges" element={<StudentBadges />} />
 	<Route path="/student/profile" element={<StudentProfile />} />
